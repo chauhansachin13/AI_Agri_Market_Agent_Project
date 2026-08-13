@@ -31,8 +31,21 @@ logger = logging.getLogger(__name__)
 PERISHABLE = {"Tomato", "Onion", "Potato", "Cauliflower", "Brinjal", "Green Chilli", "Garlic"}
 STAPLE = {"Wheat", "Rice", "Maize", "Mustard", "Soyabean", "Sugarcane"}
 
-HEAVY_RAIN_MM = 35.0     # IMD "heavy rainfall" threshold for a 24-hour period
-VERY_HEAVY_RAIN_MM = 65.0
+# India Meteorological Department 24-hour rainfall categories.
+HEAVY_RAIN_MM = 64.5          # IMD "heavy rainfall"  (64.5 - 115.5 mm)
+VERY_HEAVY_RAIN_MM = 115.6    # IMD "very heavy rainfall" (115.6 - 204.4 mm)
+WET_DAY_MM = 15.6             # IMD "moderate rainfall" floor
+
+# Cumulative criterion. A week of steady moderate rain waterlogs fields and
+# blocks farm-to-mandi transport just as effectively as one extreme day, and a
+# peak-only rule scores such a week as untroubled — which is exactly the
+# situation a farmer most needs warning about.
+CUMULATIVE_DISRUPTION_MM = 100.0
+# Two wet days is enough: a single day carrying 100 mm would already have
+# tripped the heavy-rain threshold above, so this clause exists to catch rain
+# spread across the week, not to demand that it be spread widely.
+CUMULATIVE_WET_DAYS = 2
+
 HEAT_STRESS_C = 40.0
 
 
@@ -56,6 +69,7 @@ class WeatherOutlook:
 
     total_rain_mm: float = 0.0
     heavy_rain_days: int = 0
+    wet_days: int = 0
     heat_stress_days: int = 0
     supply_risk: str = "normal"       # "disruption" | "surplus" | "normal"
     price_pressure: str = "neutral"   # "upward" | "downward" | "neutral"
@@ -73,34 +87,72 @@ def _seeded_unit(*parts: object) -> float:
     return int(digest[:12], 16) / float(16**12)
 
 
+# Southwest-monsoon intensity relative to the eastern Gangetic plain, which is
+# the wettest of the target regions. Punjab and Rajasthan sit at the dry margin
+# of the monsoon and receive a fraction of Bihar's rainfall in the same week.
+# Calibrated so the modelled June-September total, averaged over several
+# years, lands near the published seasonal normal for each region's reference
+# district. The values are not arbitrary weights; changing one shifts that
+# district's modelled rainfall directly.
+REGIONAL_MONSOON_FACTOR: dict[str, float] = {
+    "Bihar": 1.13,           # Patna, seasonal normal ~1000 mm
+    "Madhya Pradesh": 1.01,  # Indore, ~870 mm
+    "Uttar Pradesh": 0.98,   # Lucknow, ~850 mm
+    "Punjab": 0.69,          # Ludhiana, ~500 mm
+    "Rajasthan": 0.67,       # Jaipur, ~500 mm; the Thar is far drier
+    "Haryana": 0.67,         # Karnal, ~450 mm
+}
+DEFAULT_MONSOON_FACTOR = 0.9
+
+
 def _climatology(state: str | None, district: str | None, days: int, today: date) -> list[DayWeather]:
     """Deterministic season-aware fallback.
 
-    Monsoon timing and intensity across the Hindi belt is regular enough that a
-    seasonal model gives a usable prior when no forecast is reachable — far
-    better than reporting no weather signal at all.
+    Monsoon timing across the Hindi belt is regular enough that a seasonal model
+    gives a usable prior when no forecast is reachable — far better than
+    reporting no weather signal at all.
+
+    Rainfall is modelled as a wet/dry day process rather than a smooth daily
+    average, because that is how monsoon rain actually falls: many dry days
+    punctuated by a few heavy ones. Averaging it out would both understate the
+    heavy days that disrupt harvest and overstate the quiet ones, and a peak
+    threshold applied to a smoothed series is close to meaningless.
     """
+    factor = REGIONAL_MONSOON_FACTOR.get(state or "", DEFAULT_MONSOON_FACTOR)
+
     out: list[DayWeather] = []
     for offset in range(days):
         day = today + timedelta(days=offset)
         doy = day.timetuple().tm_yday
 
-        # Monsoon peaks around mid-July (day 196) across the target states.
+        # Monsoon runs roughly June to October, peaking in late July.
         monsoon = max(0.0, math.sin(math.pi * (doy - 152) / 153)) if 152 <= doy <= 305 else 0.0
-        noise = _seeded_unit(state, district, day.isoformat())
+        intensity = monsoon * factor
 
-        rainfall = round(monsoon * 28.0 * (0.3 + 1.7 * noise), 1)
+        wet_roll = _seeded_unit(state, district, day.isoformat(), "wet")
+        amount_roll = _seeded_unit(state, district, day.isoformat(), "amount")
 
-        # Summer peak near day 135; winter trough near day 15.
+        # ~10% of days are wet outside the monsoon, ~65% at its peak.
+        wet_probability = 0.10 + 0.55 * intensity
+        if wet_roll < wet_probability:
+            # Cubing skews the distribution towards light rain with an
+            # occasional downpour, which matches observed daily totals far
+            # better than a uniform draw.
+            rainfall = round(intensity * (2.0 + 62.0 * amount_roll**3), 1)
+        else:
+            rainfall = 0.0
+
+        # Temperature: summer peak near day 135, winter trough near day 15.
         seasonal_temp = 30.0 + 8.0 * math.sin(2 * math.pi * (doy - 100) / 365.0)
-        max_temp = round(seasonal_temp + 4.0 * noise - (3.0 if rainfall > 10 else 0.0), 1)
+        # Rain suppresses the daytime maximum by a few degrees.
+        max_temp = round(seasonal_temp + 4.0 * amount_roll - (4.0 if rainfall > 5 else 0.0), 1)
 
         out.append(
             DayWeather(
                 day=day.isoformat(),
                 rainfall_mm=rainfall,
                 max_temp_c=max_temp,
-                min_temp_c=round(max_temp - 9.0 - 2.0 * noise, 1),
+                min_temp_c=round(max_temp - 9.0 - 2.0 * amount_roll, 1),
             )
         )
     return out
@@ -151,25 +203,53 @@ def _assess(outlook: WeatherOutlook, crop: str | None) -> WeatherOutlook:
     outlook.heat_stress_days = sum(1 for d in days if d.max_temp_c >= HEAT_STRESS_C)
 
     very_heavy = sum(1 for d in days if d.rainfall_mm >= VERY_HEAVY_RAIN_MM)
+    wet_days = sum(1 for d in days if d.rainfall_mm >= WET_DAY_MM)
+    outlook.wet_days = wet_days
     perishable = crop in PERISHABLE if crop else False
     window = len(days)
 
-    if very_heavy >= 1 or outlook.heavy_rain_days >= 2:
+    peak_disruption = very_heavy >= 1 or outlook.heavy_rain_days >= 1
+    cumulative_disruption = (
+        outlook.total_rain_mm >= CUMULATIVE_DISRUPTION_MM and wet_days >= CUMULATIVE_WET_DAYS
+    )
+
+    if peak_disruption or cumulative_disruption:
         outlook.supply_risk = "disruption"
         outlook.price_pressure = "upward"
-        # Perishables react faster and harder, and a longer window is more
-        # likely to contain the disruption we are predicting.
-        outlook.confidence = round(min(0.85, (0.5 if perishable else 0.38) + 0.05 * very_heavy), 3)
+        # Perishables react faster and harder. An extreme day is a stronger
+        # signal than an accumulation, so it carries more confidence.
+        base = 0.5 if perishable else 0.38
+        outlook.confidence = round(
+            min(0.85, base + 0.08 * very_heavy + (0.04 if peak_disruption else 0.0)), 3
+        )
+
+        if peak_disruption:
+            cause = (
+                f"{outlook.heavy_rain_days} day(s) of heavy rain "
+                f"(over {HEAVY_RAIN_MM:.0f} mm) expected over the next {window} days"
+            )
+            cause_hi = (
+                f"अगले {window} दिनों में {outlook.heavy_rain_days} दिन तेज़ बारिश "
+                f"({HEAVY_RAIN_MM:.0f} मिमी से ऊपर) का अनुमान है"
+            )
+        else:
+            cause = (
+                f"{outlook.total_rain_mm:.0f} mm of rain expected over the next {window} "
+                f"days, wet on {wet_days} of them"
+            )
+            cause_hi = (
+                f"अगले {window} दिनों में कुल {outlook.total_rain_mm:.0f} मिमी बारिश का अनुमान है, "
+                f"जिसमें {wet_days} दिन भीगे रहेंगे"
+            )
+
         outlook.summary = (
-            f"{outlook.heavy_rain_days} day(s) of heavy rain expected over the next "
-            f"{window} days ({outlook.total_rain_mm:.0f} mm total). Arrivals are likely "
-            f"to thin as harvesting and transport are disrupted, which usually firms "
-            f"prices within a few days."
+            f"{cause} ({outlook.total_rain_mm:.0f} mm in total). Arrivals are likely to "
+            f"thin as harvesting and transport are disrupted, which usually firms prices "
+            f"within a few days."
         )
         outlook.summary_hi = (
-            f"अगले {window} दिनों में {outlook.heavy_rain_days} दिन तेज़ बारिश का अनुमान है "
-            f"(कुल {outlook.total_rain_mm:.0f} मिमी)। कटाई और ढुलाई रुकने से मंडी में आवक घट "
-            f"सकती है, जिससे भाव चढ़ने की संभावना रहती है।"
+            f"{cause_hi} (कुल {outlook.total_rain_mm:.0f} मिमी)। कटाई और ढुलाई रुकने से मंडी में "
+            f"आवक घट सकती है, जिससे भाव चढ़ने की संभावना रहती है।"
         )
     elif outlook.heat_stress_days >= max(2, window // 2) and perishable:
         outlook.supply_risk = "surplus"

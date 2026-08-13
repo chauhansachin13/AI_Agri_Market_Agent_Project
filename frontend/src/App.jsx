@@ -12,6 +12,7 @@ import { useAuth } from './context/AuthContext.jsx';
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const PricePage = lazy(() => import('./pages/PricePage.jsx'));
+const MarketplacePage = lazy(() => import('./pages/MarketplacePage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'));
 
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/prices" element={<PricePage />} />
+            <Route path="/market" element={<MarketplacePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/profile"

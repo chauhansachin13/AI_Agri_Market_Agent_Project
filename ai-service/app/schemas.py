@@ -137,6 +137,7 @@ class WeatherSignal(BaseModel):
     days: list[WeatherDay] = Field(default_factory=list)
     total_rain_mm: float = 0.0
     heavy_rain_days: int = 0
+    wet_days: int = 0
     heat_stress_days: int = 0
     supply_risk: SupplyRisk = "normal"
     price_pressure: PricePressure = "neutral"

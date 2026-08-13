@@ -7,6 +7,13 @@ import { useQuery } from '../context/QueryContext.jsx';
 import { useVoice } from '../hooks/useVoice.js';
 import ConfidenceBar from './ConfidenceBar.jsx';
 
+// Recognition tags per language. Bhojpuri and Maithili have no dedicated
+// recogniser, so they borrow Hindi — imperfect, and better than nothing.
+const SPEECH_TAGS = {
+  en: 'en-IN', hi: 'hi-IN', bho: 'hi-IN', mai: 'hi-IN',
+  mr: 'mr-IN', bn: 'bn-IN', ta: 'ta-IN',
+};
+
 const SUGGESTIONS = [
   { hi: 'बिहार में टमाटर का क्या रेट है?', en: 'What is the tomato price in Bihar?' },
   { hi: 'आसपास गेहूं कौन खरीद रहा है?', en: 'Who is buying wheat nearby?' },
@@ -15,7 +22,12 @@ const SUGGESTIONS = [
 ];
 
 function AgentBubble({ response, language, onSpeak }) {
-  const answer = language === 'en' ? response.english_answer : response.hindi_answer;
+  // Prefer the answer the agent actually produced for this language; fall back
+  // to the schema's Hindi/English pair when the language has no dedicated text.
+  const answer =
+    response.answers?.[language] ||
+    response.answer ||
+    (language === 'en' ? response.english_answer : response.hindi_answer);
   const alternate = language === 'en' ? response.hindi_answer : response.english_answer;
   const [showAlternate, setShowAlternate] = useState(false);
 
@@ -69,7 +81,7 @@ function AgentBubble({ response, language, onSpeak }) {
         )}
         <button
           type="button"
-          onClick={() => onSpeak(answer, language === 'en' ? 'en-IN' : 'hi-IN')}
+          onClick={() => onSpeak(answer, SPEECH_TAGS[language] || 'hi-IN')}
           className="ml-auto text-xs opacity-70 hover:opacity-100"
           aria-label="Listen to this answer"
         >
@@ -83,7 +95,7 @@ function AgentBubble({ response, language, onSpeak }) {
 export default function ChatBot() {
   const { ask, messages, pending, reset } = useQuery();
   const { language } = useAuth();
-  const voice = useVoice({ lang: language === 'en' ? 'en-IN' : 'hi-IN' });
+  const voice = useVoice({ lang: SPEECH_TAGS[language] || 'hi-IN' });
   const geo = useLocation();
   const [draft, setDraft] = useState('');
   const endRef = useRef(null);
@@ -104,7 +116,10 @@ export default function ChatBot() {
     if (!text || pending) return;
     setDraft('');
     voice.reset();
-    await ask(text, geo.coordinates ? { coordinates: geo.coordinates } : {});
+    await ask(text, {
+      ...(geo.coordinates ? { coordinates: geo.coordinates } : {}),
+      languageOverride: language,
+    });
   };
 
   return (

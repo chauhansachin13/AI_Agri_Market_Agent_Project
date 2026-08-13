@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { asyncRoute } from '../middleware/errorHandler.js';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { listQueries, queryStats, saveQuery } from '../store/index.js';
-import { parseQuery, runAgentQuery } from '../services/aiClient.js';
+import { fetchLanguages, parseQuery, runAgentQuery } from '../services/aiClient.js';
 
 export const queriesRouter = Router();
 
@@ -85,5 +85,13 @@ queriesRouter.get(
   '/stats',
   asyncRoute(async (_req, res) => {
     res.json(await queryStats());
+  }),
+);
+
+/** The languages the assistant can answer in (§6.3). */
+queriesRouter.get(
+  '/languages',
+  asyncRoute(async (_req, res) => {
+    res.json(await fetchLanguages());
   }),
 );

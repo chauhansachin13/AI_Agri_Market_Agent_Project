@@ -99,3 +99,30 @@ export async function health() {
     return { reachable: false, error: error.message };
   }
 }
+
+export async function fetchForecast(params) {
+  try {
+    const { data } = await client().get('/mandi/forecast', { params });
+    return data;
+  } catch (error) {
+    throw wrapError(error, 'forecast');
+  }
+}
+
+export async function fetchWeather(params) {
+  try {
+    const { data } = await client().get('/weather/outlook', { params });
+    return data;
+  } catch (error) {
+    throw wrapError(error, 'weather lookup');
+  }
+}
+
+export async function fetchLanguages() {
+  try {
+    const { data } = await client().get('/languages');
+    return data;
+  } catch (error) {
+    throw wrapError(error, 'language lookup');
+  }
+}

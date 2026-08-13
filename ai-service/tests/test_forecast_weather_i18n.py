@@ -408,3 +408,144 @@ def test_reasoning_trail_names_the_new_agents(orchestrator):
     joined = " ".join(response.reasoning_steps)
     assert "Price Forecasting" in joined
     assert "Weather Impact" in joined
+
+
+# --------------------------------------------------------------------------- #
+# Weather: thresholds and climatological calibration
+# --------------------------------------------------------------------------- #
+def test_thresholds_follow_imd_rainfall_categories():
+    """The bands are IMD's published 24-hour categories, not invented numbers."""
+    assert weather.HEAVY_RAIN_MM == 64.5
+    assert weather.VERY_HEAVY_RAIN_MM == 115.6
+    assert weather.WET_DAY_MM == 15.6
+
+
+def test_sustained_moderate_rain_is_a_disruption_even_without_a_peak_day():
+    """A week of steady rain waterlogs fields as surely as one extreme day.
+
+    A peak-only rule scored such a week as untroubled, which is precisely the
+    case a farmer most needs warning about.
+    """
+    days = [
+        weather.DayWeather(day=f"2026-08-{i:02d}", rainfall_mm=35.0, max_temp_c=30, min_temp_c=25)
+        for i in range(1, 5)
+    ]
+    assessed = weather._assess(
+        weather.WeatherOutlook(district="Patna", state="Bihar", source="test", live=True, days=days),
+        "Tomato",
+    )
+    assert assessed.heavy_rain_days == 0        # no single day reaches 64.5 mm
+    assert assessed.total_rain_mm == 140.0
+    assert assessed.supply_risk == "disruption"
+
+
+def test_a_single_imd_heavy_day_is_enough():
+    days = [
+        weather.DayWeather(day="2026-08-01", rainfall_mm=70.0, max_temp_c=29, min_temp_c=24),
+        weather.DayWeather(day="2026-08-02", rainfall_mm=0.0, max_temp_c=33, min_temp_c=26),
+    ]
+    assessed = weather._assess(
+        weather.WeatherOutlook(district="Patna", state="Bihar", source="test", live=True, days=days),
+        "Tomato",
+    )
+    assert assessed.heavy_rain_days == 1
+    assert assessed.supply_risk == "disruption"
+
+
+def test_a_light_week_stays_normal():
+    days = [
+        weather.DayWeather(day=f"2026-08-{i:02d}", rainfall_mm=4.0, max_temp_c=32, min_temp_c=26)
+        for i in range(1, 8)
+    ]
+    assessed = weather._assess(
+        weather.WeatherOutlook(district="Patna", state="Bihar", source="test", live=True, days=days),
+        "Tomato",
+    )
+    assert assessed.supply_risk == "normal"
+
+
+def test_rainfall_is_modelled_as_wet_and_dry_days_not_a_flat_average():
+    """Monsoon rain falls in bursts; a smoothed series makes peaks meaningless."""
+    from datetime import date
+
+    days = weather._climatology("Bihar", "Patna", 60, date(2026, 7, 1))
+    amounts = [d.rainfall_mm for d in days]
+    assert any(a == 0.0 for a in amounts), "expected some dry days in the monsoon"
+    assert max(amounts) > 3 * (sum(amounts) / len(amounts)), "expected bursty rainfall"
+
+
+@pytest.mark.parametrize(
+    "state,district,seasonal_normal_mm",
+    [
+        ("Bihar", "Patna", 1000),
+        ("Uttar Pradesh", "Lucknow", 850),
+        ("Madhya Pradesh", "Indore", 870),
+        ("Punjab", "Ludhiana", 500),
+        ("Rajasthan", "Jaipur", 500),
+        ("Haryana", "Karnal", 450),
+    ],
+)
+def test_climatology_matches_published_seasonal_normals(state, district, seasonal_normal_mm):
+    """June-September totals should land near the published normal.
+
+    Averaged over several years, because the wet-day model is heavy-tailed and
+    any single season varies widely — as real monsoons do.
+    """
+    from datetime import date
+
+    totals = [
+        sum(d.rainfall_mm for d in weather._climatology(state, district, 122, date(year, 6, 1)))
+        for year in range(2020, 2028)
+    ]
+    modelled = sum(totals) / len(totals)
+    error = abs(modelled - seasonal_normal_mm) / seasonal_normal_mm
+    assert error < 0.20, f"{district}: modelled {modelled:.0f} mm vs normal {seasonal_normal_mm} mm"
+
+
+def test_the_dry_season_is_dry():
+    from datetime import date
+
+    total = sum(
+        d.rainfall_mm for d in weather._climatology("Bihar", "Patna", 90, date(2026, 11, 15))
+    )
+    assert total < 60
+
+
+def test_wetter_regions_receive_more_rain_than_drier_ones():
+    """Bihar must out-rain Punjab in the same week, as it does in reality."""
+    from datetime import date
+
+    def season(state, district):
+        return sum(
+            d.rainfall_mm for d in weather._climatology(state, district, 122, date(2026, 6, 1))
+        )
+
+    assert season("Bihar", "Patna") > season("Punjab", "Ludhiana")
+    assert season("Uttar Pradesh", "Lucknow") > season("Haryana", "Karnal")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "गहूम बेचब कि रुकब?",
+        "हमर गाम मे आलू कतेक अछि?",
+        "आलू करब कि नहि?",
+    ],
+)
+def test_maithili_verb_forms_are_detected(text):
+    """The -ब verbal form is Maithili's most common diagnostic in real queries."""
+    assert detect_language(text) == "mai"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "फसल खराब हो गई है क्या भाव मिलेगा?",   # खराब ends in -ब but is Hindi
+        "इसका मतलब क्या है?",                    # so does मतलब
+        "मुझे जवाब चाहिए भाव का",                 # and जवाब
+        "अब सब जब तब कब",                        # and every common Hindi adverb
+    ],
+)
+def test_hindi_words_ending_in_ba_are_not_read_as_maithili(text):
+    """A `-ब$` regex would have misclassified all of these."""
+    assert detect_language(text) == "hi"

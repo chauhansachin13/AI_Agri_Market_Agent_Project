@@ -60,6 +60,31 @@ export const mandiBuyers = (params) => client.get('/mandis/buyers', { params }).
 export const priceTrend = (params) => client.get('/prices/trend', { params }).then((r) => r.data);
 export const priceSeries = (params) => client.get('/prices/series', { params }).then((r) => r.data);
 
+// --- forecasting and weather (§6.3) -----------------------------------------
+export const priceForecast = (params) =>
+  client.get('/prices/forecast', { params }).then((r) => r.data);
+export const weatherOutlook = (params) =>
+  client.get('/prices/weather', { params }).then((r) => r.data);
+export const supportedLanguages = () => client.get('/queries/languages').then((r) => r.data);
+
+// --- marketplace (§6.3) ------------------------------------------------------
+export const listListings = (params) =>
+  client.get('/market/listings', { params }).then((r) => r.data);
+export const getListing = (id) => client.get(`/market/listings/${id}`).then((r) => r.data);
+export const createListing = (payload) =>
+  client.post('/market/listings', payload).then((r) => r.data);
+export const updateListing = (id, payload) =>
+  client.patch(`/market/listings/${id}`, payload).then((r) => r.data);
+export const makeOffer = (id, payload) =>
+  client.post(`/market/listings/${id}/offers`, payload).then((r) => r.data);
+export const acceptOffer = (id) =>
+  client.post(`/market/offers/${id}/accept`).then((r) => r.data);
+export const rejectOffer = (id) =>
+  client.post(`/market/offers/${id}/reject`).then((r) => r.data);
+export const withdrawOffer = (id) =>
+  client.post(`/market/offers/${id}/withdraw`).then((r) => r.data);
+export const myOffers = () => client.get('/market/offers/mine').then((r) => r.data);
+
 // --- profile ----------------------------------------------------------------
 export const updateProfile = (payload) =>
   client.patch('/users/profile', payload).then((r) => r.data);

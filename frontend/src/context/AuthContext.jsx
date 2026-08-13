@@ -4,9 +4,22 @@ import * as api from '../services/api.js';
 
 const AuthContext = createContext(null);
 
+const LANGUAGE_KEY = 'agri.language';
+
+function storedLanguage() {
+  try {
+    return localStorage.getItem(LANGUAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Language is chosen before sign-in and must survive a reload, so it lives in
+  // storage rather than only on the profile. §6.3 expands this well past hi/en.
+  const [language, setLanguageState] = useState(() => storedLanguage() || 'hi');
 
   // Restore the session on first mount. A stored token may have expired while
   // the tab was closed, so it is validated against the server, not trusted.
@@ -32,6 +45,15 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  const setLanguage = useCallback((code) => {
+    setLanguageState(code);
+    try {
+      localStorage.setItem(LANGUAGE_KEY, code);
+    } catch {
+      /* non-fatal: the choice simply will not survive a reload */
+    }
   }, []);
 
   const signIn = useCallback(async (credentials) => {
@@ -64,13 +86,15 @@ export function AuthProvider({ children }) {
       user,
       loading,
       isAuthenticated: Boolean(user),
-      language: user?.preferredLanguage || 'hi',
+      // An explicit pick always wins over the saved profile preference.
+      language: storedLanguage() || user?.preferredLanguage || language,
+      setLanguage,
       signIn,
       signUp,
       signOut,
       updateProfile,
     }),
-    [user, loading, signIn, signUp, signOut, updateProfile],
+    [user, loading, language, setLanguage, signIn, signUp, signOut, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

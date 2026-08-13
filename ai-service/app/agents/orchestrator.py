@@ -373,6 +373,7 @@ def _weather_model(outlook) -> WeatherSignal | None:
         ],
         total_rain_mm=outlook.total_rain_mm,
         heavy_rain_days=outlook.heavy_rain_days,
+        wet_days=outlook.wet_days,
         heat_stress_days=outlook.heat_stress_days,
         supply_risk=outlook.supply_risk,
         price_pressure=outlook.price_pressure,

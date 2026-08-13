@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import ForecastChart from '../components/ForecastChart.jsx';
 import TrendChart from '../components/TrendChart.jsx';
+import WeatherCard from '../components/WeatherCard.jsx';
 import ConfidenceBar from '../components/ConfidenceBar.jsx';
 import * as api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -19,6 +21,8 @@ export default function PricePage() {
   const [days, setDays] = useState(45);
   const [series, setSeries] = useState([]);
   const [trend, setTrend] = useState(null);
+  const [forecast, setForecast] = useState(null);
+  const [weather, setWeather] = useState(null);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
 
@@ -27,6 +31,8 @@ export default function PricePage() {
     setError(null);
     try {
       const params = { crop, district: district || undefined, days };
+      // The series and trend are the page; the forecast and weather enrich it.
+      // Settling them separately means one flaky upstream cannot blank the page.
       const [seriesResult, trendResult] = await Promise.all([
         api.priceSeries(params),
         api.priceTrend(params),
@@ -34,6 +40,13 @@ export default function PricePage() {
       setSeries(seriesResult.points || []);
       setTrend(trendResult);
       setStatus('ready');
+
+      const [forecastResult, weatherResult] = await Promise.allSettled([
+        api.priceForecast({ crop, district: district || undefined, horizon: 7 }),
+        api.weatherOutlook({ crop, district: district || undefined }),
+      ]);
+      setForecast(forecastResult.status === 'fulfilled' ? forecastResult.value : null);
+      setWeather(weatherResult.status === 'fulfilled' ? weatherResult.value : null);
     } catch (caught) {
       setError(caught.message);
       setStatus('error');
@@ -104,7 +117,10 @@ export default function PricePage() {
       )}
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-        <TrendChart points={series} trend={trend} crop={crop} />
+        <div className="space-y-4">
+          <TrendChart points={series} trend={trend} crop={crop} />
+          <ForecastChart history={series} forecast={forecast} crop={crop} />
+        </div>
 
         {trend && (
           <aside className="glass flex flex-col items-center justify-center p-5">
@@ -129,6 +145,12 @@ export default function PricePage() {
           </aside>
         )}
       </div>
+
+      {weather && (
+        <div className="mt-4">
+          <WeatherCard weather={weather} />
+        </div>
+      )}
     </div>
   );
 }

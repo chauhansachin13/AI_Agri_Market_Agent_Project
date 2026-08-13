@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
+import LanguageSwitcher from './LanguageSwitcher.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 const LINKS = [
@@ -8,6 +9,7 @@ const LINKS = [
   { to: '/chat', label: 'Ask AI', hi: 'सवाल पूछें' },
   { to: '/dashboard', label: 'Mandi Board', hi: 'मंडी बोर्ड' },
   { to: '/prices', label: 'Trends', hi: 'रुझान' },
+  { to: '/market', label: 'Marketplace', hi: 'बाज़ार' },
 ];
 
 export default function Navbar() {
@@ -58,6 +60,7 @@ export default function Navbar() {
         </ul>
 
         <div className="ml-auto flex items-center gap-2">
+          <LanguageSwitcher compact />
           <button
             type="button"
             onClick={() => setDark((value) => !value)}

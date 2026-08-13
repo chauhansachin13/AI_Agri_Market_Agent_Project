@@ -215,7 +215,14 @@ MAITHILI = LanguageSpec(
     english_name="Maithili",
     script="devanagari",
     speech_tag="hi-IN",
-    markers=("अछि", "छैक", "कतेक", "अहाँ", "हमर", "कोना", "गेल", "रहल अछि", "भेटल"),
+    markers=(
+        "अछि", "छैक", "कतेक", "अहाँ", "हमर", "कोना", "गेल", "रहल अछि", "भेटल",
+        # The -ब verbal form (बेचब "will sell", रुकब "will wait") is distinctly
+        # Maithili. These are listed rather than matched by a `-ब$` regex,
+        # because common Hindi words end the same way — खराब, जवाब, मतलब —
+        # and a broad pattern would misread ordinary Hindi as Maithili.
+        "बेचब", "रुकब", "करब", "देब", "कहब", "लेब", "रखब", "बुझब", "जायब", "आयब",
+    ),
     marker_patterns=(r"\S+ैत\s+अछि", r"\bक[ऽ]\s",),
     crop_names={
         "Tomato": "टमाटर", "Onion": "प्याज", "Wheat": "गहूम", "Potato": "आलू",
