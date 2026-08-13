@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Build output
+dist/
+build/
+.vite/
+
+# Environment — never commit real keys
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Generated data
+ai-service/data/faiss_index/
+ai-service/data/mandi_corpus.json
+
+# Test and tooling caches
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+.ruff_cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

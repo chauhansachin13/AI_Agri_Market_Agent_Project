@@ -1,0 +1,24 @@
+# --- Core service (required) ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.8.0
+httpx>=0.27.0
+python-dotenv>=1.0.1
+
+# --- Agent stack (optional: needed for the Gemini-driven ReAct loop) ---
+langchain>=0.2.16
+langchain-core>=0.2.38
+langchain-google-genai>=1.0.10
+google-generativeai>=0.7.2
+tavily-python>=0.5.0
+
+# --- RAG stack (optional: enables transformer embeddings + FAISS) ---
+sentence-transformers>=3.0.1
+faiss-cpu>=1.8.0
+numpy>=1.26.0
+
+# --- NLP ---
+langdetect>=1.0.9
+
+# --- Testing ---
+pytest>=8.3.0
