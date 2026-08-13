@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-mandi-50 via-white to-mandi-100 text-soil-900 antialiased;
+    @apply dark:from-soil-900 dark:via-soil-800 dark:to-soil-900 dark:text-mandi-50;
+    min-height: 100vh;
+  }
+
+  /* Devanagari needs a little more line height than Latin to stay readable. */
+  :lang(hi) {
+    line-height: 1.85;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border border-white/40 bg-white/60 shadow-lg backdrop-blur-md;
+    @apply dark:border-white/10 dark:bg-white/5;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-medium;
+    @apply transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-mandi-500;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-mandi-600 text-white hover:bg-mandi-700;
+  }
+
+  .btn-ghost {
+    @apply btn border border-mandi-600/30 text-mandi-800 hover:bg-mandi-100;
+    @apply dark:text-mandi-200 dark:hover:bg-white/10;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-mandi-700/20 bg-white/80 px-4 py-2.5;
+    @apply text-soil-900 placeholder:text-soil-900/40;
+    @apply focus:border-mandi-500 focus:outline-none focus:ring-2 focus:ring-mandi-500/30;
+    @apply dark:border-white/10 dark:bg-white/5 dark:text-mandi-50 dark:placeholder:text-mandi-50/40;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium;
+  }
+}
+
+/* Respect a reader who has asked the OS to reduce motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
