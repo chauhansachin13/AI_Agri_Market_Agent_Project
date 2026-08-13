@@ -129,7 +129,8 @@ export default function ChatBot() {
           <div className="glass p-5">
             <h2 className="text-lg font-semibold">नमस्ते! मैं आपका मंडी सहायक हूँ।</h2>
             <p className="mt-1 text-sm opacity-70">
-              Ask about mandi prices, buyers, or whether to sell — in Hindi or English.
+              Ask about mandi prices, buyers, or whether to sell — in whichever language
+              you picked above.
             </p>
             <ul className="mt-4 grid gap-2 sm:grid-cols-2">
               {SUGGESTIONS.map((suggestion) => (

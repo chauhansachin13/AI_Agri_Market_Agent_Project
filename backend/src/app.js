@@ -15,12 +15,29 @@ import { usersRouter } from './routes/users.js';
 import { whatsappRouter } from './routes/whatsapp.js';
 import { health as aiHealth } from './services/aiClient.js';
 import { isDatabaseConnected } from './config/db.js';
+import { mountFrontend } from './static.js';
 
 export function createApp() {
   const app = express();
 
   app.set('trust proxy', 1); // so req.ip is the client, not the load balancer
-  app.use(helmet());
+  app.use(
+    helmet({
+      // Vite emits hashed assets and an inline module preload; the default CSP
+      // blocks the latter. Scripts stay restricted to same-origin.
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'", 'data:'],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
   app.use(
     cors({
       origin: config.corsOrigins,
@@ -67,6 +84,14 @@ export function createApp() {
   app.use('/api/prices', pricesRouter);
   app.use('/api/market', marketplaceRouter);
   app.use('/api/whatsapp', whatsappRouter);
+
+  // The built SPA is served from the gateway when it is present, so the whole
+  // product is one origin on one port. Mounted after the API routes so the
+  // client-side routing fallback can never shadow /api.
+  const frontend = mountFrontend(app);
+  if (frontend && config.nodeEnv !== 'test') {
+    console.log(`[server] serving frontend from ${frontend}`);
+  }
 
   app.use(notFound);
   app.use(errorHandler);

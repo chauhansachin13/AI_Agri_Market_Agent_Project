@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom';
 const STATS = [
   { value: '3,500+', en: 'Mandis covered', hi: 'मंडियाँ' },
   { value: '15', en: 'Crops supported', hi: 'फसलें' },
-  { value: '2', en: 'Languages', hi: 'भाषाएँ' },
-  { value: '10', en: 'AI agents', hi: 'एआई एजेंट' },
+  { value: '7', en: 'Languages', hi: 'भाषाएँ' },
+  { value: '12', en: 'AI agents', hi: 'एआई एजेंट' },
 ];
 
 const FEATURES = [
@@ -20,8 +20,8 @@ const FEATURES = [
     icon: '🗣️',
     en: 'Ask in your own words',
     hi: 'अपनी भाषा में पूछें',
-    body: 'Type or speak in Hindi or English. Answers come back in both, written plainly.',
-    bodyHi: 'हिंदी या अंग्रेज़ी में बोलकर या लिखकर पूछें। जवाब आसान भाषा में मिलेगा।',
+    body: 'Hindi, Bhojpuri, Maithili, Marathi, Bengali, Tamil or English — typed or spoken. The answer comes back in the language you asked in.',
+    bodyHi: 'हिंदी, भोजपुरी, मैथिली, मराठी, बांग्ला, तमिल या अंग्रेज़ी — बोलकर या लिखकर पूछें। जवाब उसी भाषा में मिलेगा।',
   },
   {
     icon: '🧭',
@@ -36,6 +36,20 @@ const FEATURES = [
     hi: 'हर कदम दिखता है',
     body: 'The reasoning panel shows what the assistant checked and what it could verify.',
     bodyHi: 'सहायक ने क्या देखा और क्या पक्का किया — सब पैनल में दिखता है।',
+  },
+  {
+    icon: '📈',
+    en: 'A forecast, with its error rate',
+    hi: 'आगे का अनुमान, सच्चाई के साथ',
+    body: 'A trained model projects the week ahead and reports how well it actually scored.',
+    bodyHi: 'आगे हफ़्ते भर का अनुमान, और यह भी कि अनुमान कितना सही बैठता रहा है।',
+  },
+  {
+    icon: '🤝',
+    en: 'Sell directly to buyers',
+    hi: 'सीधे खरीदार को बेचें',
+    body: 'List your produce, receive offers, and compare each one against the mandi rate.',
+    bodyHi: 'अपनी फसल डालें, ऑफर पाएँ, और हर ऑफर को मंडी भाव से मिलाकर देखें।',
   },
 ];
 

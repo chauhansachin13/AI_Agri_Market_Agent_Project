@@ -118,10 +118,35 @@ morphological ones. See [docs/LANGUAGES.md](docs/LANGUAGES.md).
 
 ## Running it
 
-Requirements: **Python 3.11+**, **Node.js 20+**. MongoDB and all API keys are
-optional.
+Requirements: **Python 3.11+** and **Node.js 20+**. That is all — MongoDB and
+every API key are optional.
 
-### 1. AI service
+```bash
+git clone https://github.com/chauhansachin13/AI_Agri_Market_Agent_Project.git
+cd AI_Agri_Market_Agent_Project
+./run.sh
+```
+
+That installs everything, builds the frontend, starts both services and prints
+the URL — the whole app on **one port**, typically <http://localhost:4000>.
+
+| Command | What it does |
+|---|---|
+| `./run.sh` | Build and serve everything on one port |
+| `./run.sh dev` | Hot-reloading dev servers (Vite on 5173) |
+| `./run.sh test` | Run all three test suites |
+| `./run.sh stop` | Stop everything it started |
+| `docker compose up --build` | Same thing, in containers |
+
+It picks a free port if the default is taken — worth knowing on macOS, where
+AirPlay Receiver permanently occupies port 5000.
+
+### Running the pieces separately
+
+<details>
+<summary>Manual, three-terminal setup</summary>
+
+#### 1. AI service
 
 ```bash
 cd ai-service
@@ -131,7 +156,7 @@ cp .env.example .env
 OFFLINE_MODE=1 uvicorn app.main:app --reload --port 8000
 ```
 
-### 2. Backend gateway
+#### 2. Backend gateway
 
 ```bash
 cd backend
@@ -140,7 +165,7 @@ cp .env.example .env
 npm run dev
 ```
 
-### 3. Frontend
+#### 3. Frontend
 
 ```bash
 cd frontend
@@ -148,13 +173,23 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open <http://localhost:5173>.
 
-### Everything at once
+</details>
 
-```bash
-docker compose up --build
-```
+### Going live
+
+Everything above runs offline against the bundled dataset, and every answer
+says so. To use real data, put the keys you have in `ai-service/.env` — each one
+is independent, and the system reports which are active on `/health`:
+
+| Key | Enables |
+|---|---|
+| `AGMARKNET_API_KEY` | Live government mandi prices ([data.gov.in](https://data.gov.in)) |
+| `GEMINI_API_KEY` | The Gemini ReAct loop and LLM-written answers |
+| `TAVILY_API_KEY` | Internet search for market news |
+| `MONGO_URI` | Persistent accounts, history and listings |
+| `WHATSAPP_*` | The WhatsApp channel (see `backend/.env.example`) |
 
 ---
 

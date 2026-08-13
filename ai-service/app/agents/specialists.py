@@ -161,13 +161,18 @@ class LocationResolutionAgent:
             resolved: LocationContext = payload["context"]
             context.nlp.location = resolved
             context.nearby_districts = payload["nearby_districts"]
+            context.observe(self.name, result.as_observation())
         else:
+            # An unresolved location is a normal outcome, not a failure: the
+            # farmer simply did not name a place. The reasoning panel is shown
+            # to farmers, so it says what happened in words rather than
+            # surfacing the raw tool error code.
             context.observe(
                 self.name,
-                "Location could not be resolved; falling back to state-level or "
-                "default district coverage.",
+                "No location was named in the question and none could be inferred, "
+                "so prices are shown for the main districts we cover. Naming your "
+                "district will give a closer answer.",
             )
-        context.observe(self.name, result.as_observation())
         return context
 
 

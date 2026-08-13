@@ -93,6 +93,20 @@ export default function ForecastChart({ history = [], forecast, crop }) {
   const colour = rising ? '#16a34a' : '#dc2626';
   const skill = skillLabel(forecast);
 
+  // The interval band is drawn as a stacked Area, and a stack is measured from
+  // zero — so an automatic domain drags the axis down to ₹0 and squashes the
+  // whole price range into a sliver at the top. The domain is therefore set
+  // explicitly from the values actually plotted.
+  const plotted = [
+    ...observedRows.map((row) => row.observed),
+    ...forecastRows.flatMap((row) => [row.lower, row.upper]),
+  ].filter((value) => Number.isFinite(value));
+
+  const low = Math.min(...plotted);
+  const high = Math.max(...plotted);
+  const pad = Math.max((high - low) * 0.12, 20);
+  const domain = [Math.floor(low - pad), Math.ceil(high + pad)];
+
   return (
     <section className="glass p-4" data-testid="forecast-chart">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -119,7 +133,13 @@ export default function ForecastChart({ history = [], forecast, crop }) {
           <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 4, left: 4 }}>
             <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
             <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 11 }} minTickGap={28} />
-            <YAxis tickFormatter={formatRupees} tick={{ fontSize: 11 }} width={64} domain={['auto', 'auto']} />
+            <YAxis
+              tickFormatter={formatRupees}
+              tick={{ fontSize: 11 }}
+              width={64}
+              domain={domain}
+              allowDataOverflow
+            />
             <Tooltip content={<ForecastTooltip />} />
 
             <Area
