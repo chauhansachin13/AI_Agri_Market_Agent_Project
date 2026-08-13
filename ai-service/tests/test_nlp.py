@@ -7,7 +7,7 @@ import pytest
 from app.nlp import pipeline
 from app.nlp.entities import extract_all_crops, extract_crop, extract_quantity, to_quintals
 from app.nlp.intents import classify_intent, is_ambiguous
-from app.nlp.language import detect_language, response_language
+from app.nlp.language import detect_language, is_code_switched, response_language
 from app.nlp.location import (
     from_coordinates,
     from_pincode,
@@ -33,19 +33,55 @@ def test_detects_pure_language(text, expected):
     assert detect_language(text) == expected
 
 
-def test_code_switched_query_is_mixed():
-    assert detect_language("Patna में tomato का rate क्या है") == "mixed"
+def test_code_switched_query_is_recognised_as_such():
+    query = "Patna में tomato का rate क्या है"
+    assert is_code_switched(query) is True
+    # The Indic half decides the language; §6.3 replaced the old flat "mixed"
+    # label with the language the farmer actually reached for.
+    assert detect_language(query) == "hi"
 
 
-def test_romanised_hindi_is_treated_as_mixed():
-    assert detect_language("Patna me tamatar ka bhav kya hai") == "mixed"
+def test_romanised_hindi_is_detected_as_hindi():
+    assert detect_language("Patna me tamatar ka bhav kya hai") == "hi"
 
 
-def test_mixed_queries_answer_in_hindi():
-    # Section 4.1.1: mixed input defaults to Hindi for response generation.
-    assert response_language("mixed") == "hi"
+def test_pure_english_is_not_code_switched():
+    assert is_code_switched("What is the tomato price in Bihar?") is False
+
+
+def test_code_switched_queries_answer_in_the_indic_language():
+    # Section 4.1.1: a mixed query is never answered in English.
     assert response_language("hi") == "hi"
-    assert response_language("en") == "en"
+    assert response_language("en", "Patna में tomato का rate") == "hi"
+    assert response_language("en", "What is the tomato price?") == "en"
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("रउआ बताईं कि पियाज के भाव केतना बा?", "bho"),
+        ("पियाज बेचीं कि रुकीं?", "bho"),
+        ("गहूम के भाव कतेक अछि?", "mai"),
+        ("कांद्याचा भाव किती आहे?", "mr"),
+        ("আজ পেঁয়াজের দাম কত?", "bn"),
+        ("இன்று வெங்காயம் விலை எவ்வளவு?", "ta"),
+    ],
+)
+def test_detects_the_regional_languages(text, expected):
+    """Section 6.3 expansion beyond Hindi and English."""
+    assert detect_language(text) == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "मंडी में भाव नहीं बढ़ा है क्या?",   # नहीं must not read as a Bhojpuri -ईं
+        "कहीं टमाटर सस्ता मिलेगा क्या?",     # nor कहीं
+        "क्या मुझे अभी प्याज बेच देना चाहिए?",
+    ],
+)
+def test_standard_hindi_is_not_mistaken_for_a_regional_language(text):
+    assert detect_language(text) == "hi"
 
 
 def test_empty_query_does_not_crash():

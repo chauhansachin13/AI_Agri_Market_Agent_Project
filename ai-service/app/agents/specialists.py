@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 
 from ..nlp import pipeline as nlp_pipeline
 from ..nlp.intents import classify_intent, is_ambiguous
+from ..nlp.language import response_language
 from ..nlp.lexicon import CROP_HINDI_LABEL
 from ..schemas import (
     BuyerRecord,
@@ -31,7 +32,15 @@ from ..schemas import (
     PriceRecord,
     TrendAnalysis,
 )
-from ..tools import location_tool, mandi_tool, prediction_tool, tavily_tool, vector_tool
+from ..tools import (
+    forecast_tool,
+    location_tool,
+    mandi_tool,
+    prediction_tool,
+    tavily_tool,
+    vector_tool,
+    weather_tool,
+)
 from ..tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -50,8 +59,11 @@ class AgentContext:
     retrieved_context: list[str] = field(default_factory=list)
     search_snippets: list[str] = field(default_factory=list)
     trend: TrendAnalysis | None = None
+    forecast: object | None = None       # app.forecast.models.Forecast
+    weather: object | None = None        # app.data.weather.WeatherOutlook
     price_series: list[float] = field(default_factory=list)
     narrative: str = ""
+    response_language: str = "hi"
     prediction: Prediction | None = None
     claims: list[FactCheckClaim] = field(default_factory=list)
     degraded: bool = False
@@ -104,6 +116,7 @@ class IntentDetectionAgent:
             language_override=language_override,
         )
         context = AgentContext(query=query, nlp=result)
+        context.response_language = response_language(result.language, query)
         context.observe(
             self.name,
             f"Detected language '{result.language}' and intent '{result.intent}' "
@@ -291,6 +304,60 @@ class PricePredictionAgent:
 
 
 # --------------------------------------------------------------------------- #
+# 7b. Price Forecasting Agent (§6.3)
+# --------------------------------------------------------------------------- #
+class PriceForecastingAgent:
+    """Fit a trained model to the price history and project it forward.
+
+    This is the model Section 6.2 says the EMA smoother should become. The EMA
+    triple is kept for trend classification, because it is what the response
+    schema exposes and it explains itself; this agent answers the different
+    question of where prices are heading.
+    """
+
+    name = "Price Forecasting"
+
+    def run(self, context: AgentContext, horizon: int = 7) -> AgentContext:
+        if not context.nlp.crop:
+            context.observe(self.name, "No crop identified, so no forecast was fitted.")
+            return context
+
+        location = context.nlp.location
+        result: ToolResult = forecast_tool.TOOL(
+            crop=context.nlp.crop,
+            state=location.state,
+            district=location.district,
+            horizon=horizon,
+        )
+        if result.ok:
+            context.forecast = result.data["forecast"]
+        context.observe(self.name, result.as_observation())
+        return context
+
+
+# --------------------------------------------------------------------------- #
+# 7c. Weather Impact Agent (§6.3)
+# --------------------------------------------------------------------------- #
+class WeatherImpactAgent:
+    """Turn the district forecast into an anticipated supply signal."""
+
+    name = "Weather Impact"
+
+    def run(self, context: AgentContext, days: int = 7) -> AgentContext:
+        location = context.nlp.location
+        result: ToolResult = weather_tool.TOOL(
+            state=location.state,
+            district=location.district,
+            crop=context.nlp.crop,
+            days=days,
+        )
+        if result.ok:
+            context.weather = result.data
+        context.observe(self.name, result.as_observation())
+        return context
+
+
+# --------------------------------------------------------------------------- #
 # 8. Reasoning Agent
 # --------------------------------------------------------------------------- #
 class ReasoningAgent:
@@ -332,6 +399,24 @@ class ReasoningAgent:
                 f"Rs {context.trend.ema_7:.0f} against EMA-30 at Rs {context.trend.ema_30:.0f}, "
                 f"with measured volatility of {context.trend.volatility:.4f}."
             )
+
+        if context.forecast is not None and getattr(context.forecast, "points", None):
+            final = context.forecast.points[-1]
+            change = context.forecast.expected_change_pct
+            accuracy = (
+                f", backtested at {context.forecast.mape:.1f}% error"
+                if context.forecast.mape is not None
+                else ""
+            )
+            parts.append(
+                f"A {context.forecast.model} model trained on "
+                f"{context.forecast.trained_on} days of history projects "
+                f"Rs {final.value:.0f} per quintal in {final.horizon} days "
+                f"({change:+.1f}% from today){accuracy}."
+            )
+
+        if context.weather is not None and context.weather.supply_risk != "normal":
+            parts.append(context.weather.summary)
 
         if context.retrieved_context:
             parts.append(
@@ -405,6 +490,49 @@ class SellDecisionAgent:
                     signals.append(
                         (-2.5, "the current rate is near the bottom of its recent range")
                     )
+
+        # Trained forecast (§6.3). This is forward-looking evidence, so it is
+        # weighted by how well the model actually backtested — a forecast that
+        # could not beat a naive baseline should not move the decision much.
+        forecast = context.forecast
+        if forecast is not None and getattr(forecast, "points", None):
+            change = forecast.expected_change_pct
+            if change is not None:
+                weight = 3.0 * min(max(forecast.confidence, 0.0), 1.0)
+                confidence_inputs.append(forecast.confidence)
+                horizon = forecast.points[-1].horizon
+                if change <= -3.0:
+                    signals.append(
+                        (
+                            weight,
+                            f"our forecast expects prices about {abs(change):.0f}% lower in "
+                            f"{horizon} days",
+                        )
+                    )
+                elif change >= 3.0:
+                    signals.append(
+                        (
+                            -weight,
+                            f"our forecast expects prices about {change:.0f}% higher in "
+                            f"{horizon} days",
+                        )
+                    )
+
+        # Weather-driven supply shock (§6.3). Rain that thins arrivals firms
+        # prices, which argues for holding; a heat-driven glut argues for
+        # selling before the surplus lands.
+        weather = context.weather
+        if weather is not None and weather.supply_risk != "normal":
+            weight = 2.0 * weather.confidence
+            confidence_inputs.append(weather.confidence)
+            if weather.price_pressure == "upward":
+                signals.append(
+                    (-weight, "heavy rain is likely to disrupt arrivals and firm prices")
+                )
+            elif weather.price_pressure == "downward":
+                signals.append(
+                    (weight, "a hot dry spell is likely to increase arrivals and soften prices")
+                )
 
         # Cross-mandi arbitrage: a wide spread means the farmer can do better by
         # moving the load, which argues against selling into the local rate.
@@ -680,6 +808,8 @@ __all__ = [
     "TavilySearchAgent",
     "ContextRetrievalAgent",
     "PricePredictionAgent",
+    "PriceForecastingAgent",
+    "WeatherImpactAgent",
     "ReasoningAgent",
     "SellDecisionAgent",
     "FactCheckAgent",

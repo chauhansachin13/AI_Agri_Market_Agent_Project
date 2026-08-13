@@ -7,7 +7,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from .agents.orchestrator import get_orchestrator
+from .agents.orchestrator import _forecast_model, _weather_model, get_orchestrator
 from .config import get_settings
 from .data import agmarknet_gov, enam
 from .nlp import pipeline as nlp_pipeline
@@ -17,11 +17,13 @@ from .schemas import (
     BuyerRecord,
     HealthResponse,
     NLPResult,
+    PriceForecast,
     PriceRecord,
     QueryRequest,
     TrendAnalysis,
+    WeatherSignal,
 )
-from .tools import prediction_tool
+from .tools import forecast_tool, prediction_tool, weather_tool
 
 VERSION = "1.0.0"
 
@@ -127,6 +129,58 @@ def mandi_trend(
     if not result.ok:
         raise HTTPException(status_code=404, detail=result.error or "No trend available")
     return result.data["analysis"]
+
+
+@app.get("/languages", tags=["system"])
+def languages() -> dict:
+    """The supported languages, for the frontend picker (§6.3)."""
+    from .i18n.translate import available as translation_available, language_options
+
+    return {
+        "languages": language_options(),
+        "default": "hi",
+        "neural_translation": translation_available(),
+    }
+
+
+@app.get("/mandi/forecast", response_model=PriceForecast, tags=["data"])
+def mandi_forecast(
+    crop: str,
+    state: str | None = None,
+    district: str | None = None,
+    horizon: int = 7,
+    history_days: int = 90,
+) -> PriceForecast:
+    """Trained multi-step price forecast with prediction intervals (§6.3)."""
+    result = forecast_tool.TOOL(
+        crop=crop,
+        state=state,
+        district=district,
+        horizon=horizon,
+        history_days=history_days,
+    )
+    if not result.ok:
+        raise HTTPException(status_code=404, detail=result.error or "No forecast available")
+
+    model = _forecast_model(result.data["forecast"])
+    if model is None:
+        raise HTTPException(status_code=404, detail="No forecast available")
+    return model
+
+
+@app.get("/weather/outlook", response_model=WeatherSignal, tags=["data"])
+def weather_outlook(
+    state: str | None = None,
+    district: str | None = None,
+    crop: str | None = None,
+    days: int = 7,
+) -> WeatherSignal:
+    """Weather outlook and its implication for mandi supply (§6.3)."""
+    result = weather_tool.TOOL(state=state, district=district, crop=crop, days=days)
+    model = _weather_model(result.data)
+    if model is None:
+        raise HTTPException(status_code=404, detail="No weather outlook available")
+    return model
 
 
 @app.get("/mandi/series", tags=["data"])

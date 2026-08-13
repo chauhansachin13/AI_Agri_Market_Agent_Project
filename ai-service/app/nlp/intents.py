@@ -9,17 +9,53 @@ score wins, with `price_query` as the fallback.
 
 from __future__ import annotations
 
+from ..i18n.registry import LANGUAGES
 from ..schemas import Intent
 from .lexicon import DEFAULT_INTENT, INTENT_TRIGGERS
 
 
+def _regional_triggers() -> dict[str, dict[str, int]]:
+    """Trigger words contributed by the regional language registry.
+
+    The Hindi and English vocabularies in `lexicon` are weighted by hand and
+    stay authoritative. Every other language contributes its triggers at a
+    uniform weight of 2, which is enough to classify correctly without
+    re-tuning seven vocabularies against each other.
+    """
+    # A word for "price" appears in almost every query, including ones that are
+    # really asking whether to sell. The more specific intents therefore carry
+    # more weight, so they do not lose a tie to the ubiquitous term.
+    weights = {
+        "price_query": 2,
+        "buyer_search": 3,
+        "sell_advice": 3,
+        "trend_analysis": 3,
+    }
+
+    merged: dict[str, dict[str, int]] = {intent: {} for intent in INTENT_TRIGGERS}
+    for spec in LANGUAGES.values():
+        for intent, phrases in spec.intent_triggers.items():
+            if intent not in merged:
+                continue
+            for phrase in phrases:
+                merged[intent].setdefault(phrase.lower(), weights.get(intent, 2))
+    return merged
+
+
 def score_intents(text: str) -> dict[str, float]:
-    """Aggregate trigger weights per intent class."""
+    """Aggregate trigger weights per intent class, across all languages."""
     lowered = f" {text.lower().strip()} "
     scores: dict[str, float] = {intent: 0.0 for intent in INTENT_TRIGGERS}
 
-    for intent, triggers in INTENT_TRIGGERS.items():
-        for phrase, weight in triggers.items():
+    regional = _regional_triggers()
+
+    for intent in INTENT_TRIGGERS:
+        # Hand-weighted terms first; regional terms only where they add a
+        # phrase the curated vocabulary does not already cover.
+        combined = dict(regional.get(intent, {}))
+        combined.update(INTENT_TRIGGERS[intent])
+
+        for phrase, weight in combined.items():
             if phrase in lowered:
                 # Multi-word phrases are far more discriminative than single
                 # tokens, so they carry an additional multiplier.

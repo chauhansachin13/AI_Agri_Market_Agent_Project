@@ -21,8 +21,24 @@ import logging
 import time
 
 from ..config import get_settings
-from ..schemas import AgentResponse, GeoPoint, QueryRequest
-from ..tools import location_tool, mandi_tool, prediction_tool, tavily_tool, vector_tool
+from ..schemas import (
+    AgentResponse,
+    ForecastPointModel,
+    GeoPoint,
+    PriceForecast,
+    QueryRequest,
+    WeatherDay,
+    WeatherSignal,
+)
+from ..tools import (
+    forecast_tool,
+    location_tool,
+    mandi_tool,
+    prediction_tool,
+    tavily_tool,
+    vector_tool,
+    weather_tool,
+)
 from .answer import AnswerGenerationAgent
 from .llm import get_llm
 from .specialists import (
@@ -33,10 +49,12 @@ from .specialists import (
     IntentDetectionAgent,
     LocationResolutionAgent,
     MandiIntelligenceAgent,
+    PriceForecastingAgent,
     PricePredictionAgent,
     ReasoningAgent,
     SellDecisionAgent,
     TavilySearchAgent,
+    WeatherImpactAgent,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,6 +65,9 @@ TOOLS = [
     location_tool.TOOL,
     vector_tool.TOOL,
     prediction_tool.TOOL,
+    # Added by Section 6.3: a trained forecaster and a weather supply signal.
+    forecast_tool.TOOL,
+    weather_tool.TOOL,
 ]
 
 REACT_SYSTEM_PROMPT = """You are the reasoning core of an agricultural market
@@ -120,6 +141,8 @@ class ReActOrchestrator:
         self.search_agent = TavilySearchAgent()
         self.retrieval_agent = ContextRetrievalAgent()
         self.prediction_agent = PricePredictionAgent()
+        self.forecasting_agent = PriceForecastingAgent()
+        self.weather_agent = WeatherImpactAgent()
         self.reasoning_agent = ReasoningAgent()
         self.sell_agent = SellDecisionAgent()
         self.fact_check_agent = FactCheckAgent()
@@ -154,10 +177,10 @@ class ReActOrchestrator:
         self.reasoning_agent.run(context)
         self.sell_agent.run(context)
 
-        english, hindi, status = self.answer_agent.run(context)
+        answers, primary, status = self.answer_agent.run(context)
 
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        return self._assemble(context, english, hindi, status, elapsed_ms)
+        return self._assemble(context, answers, primary, status, elapsed_ms)
 
     # ----------------------------------------------------------------- #
     def _gather_evidence(self, context: AgentContext) -> None:
@@ -179,7 +202,12 @@ class ReActOrchestrator:
         if intent in ("trend_analysis", "sell_advice", "price_query"):
             self.prediction_agent.run(context)
 
+        # The trained forecast and the weather signal only change the answer for
+        # forward-looking questions, and both cost real work, so they are not
+        # run for a plain "what is the rate today".
         if intent in ("trend_analysis", "sell_advice"):
+            self.forecasting_agent.run(context)
+            self.weather_agent.run(context)
             self.search_agent.run(context)
 
     # ----------------------------------------------------------------- #
@@ -233,8 +261,8 @@ class ReActOrchestrator:
     def _assemble(
         self,
         context: AgentContext,
-        english: str,
-        hindi: str,
+        answers: dict[str, str],
+        primary: str,
         status: str,
         elapsed_ms: int,
     ) -> AgentResponse:
@@ -248,12 +276,17 @@ class ReActOrchestrator:
             buyers=context.buyers,
             best_mandi=f"{best.market}, {best.district}" if best else None,
             trend_analysis=context.trend,
+            forecast=_forecast_model(context.forecast),
+            weather=_weather_model(context.weather),
             prediction=context.prediction,
             confidence_score=self._confidence(context, status),
             fact_check_status=status,  # type: ignore[arg-type]
             fact_check_claims=context.claims,
-            english_answer=english,
-            hindi_answer=hindi,
+            english_answer=answers.get("en", ""),
+            hindi_answer=answers.get("hi", ""),
+            answer=answers.get(primary, ""),
+            answer_language=primary,  # type: ignore[arg-type]
+            answers=answers,
             reasoning_steps=context.reasoning_steps,
             retrieved_context=context.retrieved_context,
             search_snippets=context.search_snippets,
@@ -290,6 +323,63 @@ class ReActOrchestrator:
             score *= 0.85
 
         return round(min(max(score, 0.0), 1.0), 3)
+
+
+def _forecast_model(forecast) -> PriceForecast | None:
+    """Convert the internal Forecast dataclass into its wire schema."""
+    if forecast is None or not getattr(forecast, "points", None):
+        return None
+
+    beats_baseline = None
+    if forecast.mape is not None and forecast.baseline_mape is not None:
+        beats_baseline = forecast.mape < forecast.baseline_mape
+
+    return PriceForecast(
+        model_name=forecast.model,
+        points=[
+            ForecastPointModel(
+                horizon=p.horizon, value=p.value, lower=p.lower, upper=p.upper
+            )
+            for p in forecast.points
+        ],
+        horizon_days=forecast.horizon_days,
+        expected_change_pct=forecast.expected_change_pct,
+        mape=forecast.mape,
+        baseline_mape=forecast.baseline_mape,
+        beats_baseline=beats_baseline,
+        trained_on=forecast.trained_on,
+        confidence=forecast.confidence,
+        notes=list(forecast.notes),
+    )
+
+
+def _weather_model(outlook) -> WeatherSignal | None:
+    """Convert the internal WeatherOutlook dataclass into its wire schema."""
+    if outlook is None:
+        return None
+    return WeatherSignal(
+        district=outlook.district,
+        state=outlook.state,
+        source=outlook.source,
+        live=outlook.live,
+        days=[
+            WeatherDay(
+                day=d.day,
+                rainfall_mm=d.rainfall_mm,
+                max_temp_c=d.max_temp_c,
+                min_temp_c=d.min_temp_c,
+            )
+            for d in outlook.days
+        ],
+        total_rain_mm=outlook.total_rain_mm,
+        heavy_rain_days=outlook.heavy_rain_days,
+        heat_stress_days=outlook.heat_stress_days,
+        supply_risk=outlook.supply_risk,
+        price_pressure=outlook.price_pressure,
+        confidence=outlook.confidence,
+        summary=outlook.summary,
+        summary_hi=outlook.summary_hi,
+    )
 
 
 _orchestrator: ReActOrchestrator | None = None

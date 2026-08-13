@@ -1,160 +1,141 @@
-"""Answer Generation Agent — bilingual, farmer-friendly output (§4.7).
+"""Answer Generation Agent — multilingual, farmer-friendly output (§4.7, §6.3).
 
 Two generation paths produce the same schema:
 
   * **LLM path** — Gemini is prompted with the grounding contract plus the
-    assembled context, and asked for Hindi and English answers.
-  * **Template path** — deterministic natural-language templates built directly
-    from the verified data.
+    assembled context, and asked for the answer in the farmer's language.
+  * **Template path** — deterministic templates from the language registry,
+    filled directly from the verified data.
 
-The template path is not a stub. It is the guaranteed-grounded generator: every
-number it emits is copied from a fetched record, so it cannot hallucinate by
-construction. It runs whenever no LLM is configured, and it is also the safety
-net when the LLM's output fails fact-checking.
+The template path is not a stub. It is the guaranteed-grounded generator:
+every number it emits is copied from a fetched record, so it cannot
+hallucinate by construction, and because only numbers and proper nouns cross
+the language boundary, no figure can be corrupted in translation. It runs
+whenever no LLM is configured, for every language without exception, and it is
+also the safety net when the LLM's output fails fact-checking.
 """
 
 from __future__ import annotations
 
 import logging
 
+from ..i18n.registry import crop_label, get_language, template
 from ..nlp.lexicon import to_devanagari_place
-from ..schemas import FactCheckStatus
+from ..schemas import FactCheckStatus, Language
 from .llm import GROUNDING_RULES, get_llm
-from .specialists import AgentContext, FactCheckAgent, hindi_crop_label
+from .specialists import AgentContext, FactCheckAgent
 
 logger = logging.getLogger(__name__)
 
-
-# --------------------------------------------------------------------------- #
-# Deterministic bilingual templates
-# --------------------------------------------------------------------------- #
-def _english_answer(context: AgentContext) -> str:
-    crop = context.nlp.crop or "your crop"
-    where = context.location_label
-    sentences: list[str] = []
-
-    if context.prices:
-        best = context.prices[0]
-        sentences.append(
-            f"{crop} is selling at about Rs {best.modal_price:.0f} per quintal at "
-            f"{best.market} mandi in {best.district}, the best rate near {where} "
-            f"on {best.arrival_date}."
-        )
-        if len(context.prices) > 1:
-            others = context.prices[1:4]
-            listed = "; ".join(
-                f"{r.market} Rs {r.modal_price:.0f}" for r in others
-            )
-            sentences.append(f"Other nearby mandis: {listed}.")
-    else:
-        sentences.append(
-            f"No mandi price was reported for {crop} near {where} for the latest arrival day."
-        )
-
-    if context.prediction:
-        verb = "sell now" if context.prediction.recommendation == "SELL" else "wait"
-        reason = context.prediction.reason.rstrip(". ")
-        sentences.append(
-            f"Our advice is to {verb} — {reason} "
-            f"(confidence {context.prediction.confidence * 100:.0f} percent)."
-        )
-
-    if context.trend:
-        direction = {
-            "upward": "rising", "downward": "falling", "stable": "steady"
-        }[context.trend.direction]
-        sentences.append(
-            f"The price has been {direction} over the past few weeks "
-            f"(7-day average Rs {context.trend.ema_7:.0f} against "
-            f"30-day average Rs {context.trend.ema_30:.0f})."
-        )
-
-    if context.buyers:
-        names = ", ".join(b.apmc_name for b in context.buyers[:3])
-        sentences.append(f"Buyers you can contact near {where}: {names}.")
-
-    if context.degraded:
-        sentences.append(
-            "Note: the live government feed was not reachable, so these figures come "
-            "from the offline reference dataset and should be confirmed at the mandi."
-        )
-
-    return " ".join(sentences)
+# Languages whose place names we can render in their own script. Elsewhere the
+# Agmarknet spelling is kept — a farmer looks for the name painted on the yard
+# gate, not a transliteration of it.
+_DEVANAGARI_PLACES = {"hi", "bho", "mai", "mr"}
 
 
-def _hindi_location(context: AgentContext) -> str:
-    """Render the location in Devanagari where a known form exists.
+def _format_number(value: float) -> str:
+    return f"{value:.0f}"
 
-    Mandi names themselves stay as Agmarknet publishes them — a farmer looks
-    for the name that is painted on the yard gate, not a transliteration.
-    """
+
+def _location_label(context: AgentContext, language: str) -> str:
     location = context.nlp.location
-    parts = [to_devanagari_place(location.district), to_devanagari_place(location.state)]
+    parts = [location.district, location.state]
+
+    if language in _DEVANAGARI_PLACES:
+        parts = [to_devanagari_place(p) for p in parts]
+
     label = ", ".join(p for p in parts if p)
     if label:
         return label
 
-    # Unresolved location: translate the district set the prices actually came from.
     districts = list(dict.fromkeys(r.district for r in context.prices if r.district))
     if districts:
-        translated = [to_devanagari_place(d) or d for d in districts[:3]]
-        return ", ".join(translated) + (" और आसपास" if len(districts) > 3 else "")
-    return "आपके क्षेत्र"
+        if language in _DEVANAGARI_PLACES:
+            districts = [to_devanagari_place(d) or d for d in districts]
+        return ", ".join(districts[:3])
+
+    return context.location_label
 
 
-def _hindi_answer(context: AgentContext) -> str:
-    crop = hindi_crop_label(context.nlp.crop)
-    where = _hindi_location(context)
+# --------------------------------------------------------------------------- #
+# Template generation
+# --------------------------------------------------------------------------- #
+def render_answer(context: AgentContext, language: str) -> str:
+    """Assemble the answer for one language from the registry templates."""
+    crop = crop_label(language, context.nlp.crop)
+    where = _location_label(context, language)
     sentences: list[str] = []
 
     if context.prices:
         best = context.prices[0]
         sentences.append(
-            f"{where} के पास {best.market} मंडी में {crop} का भाव लगभग "
-            f"{best.modal_price:.0f} रुपये प्रति क्विंटल है। यह {best.arrival_date} का "
-            f"सबसे अच्छा रेट है।"
+            template(language, "price").format(
+                crop=crop,
+                price=_format_number(best.modal_price),
+                market=best.market,
+                district=best.district,
+                where=where,
+                date=best.arrival_date,
+            )
         )
         if len(context.prices) > 1:
             listed = "; ".join(
-                f"{r.market} में {r.modal_price:.0f} रुपये" for r in context.prices[1:4]
+                f"{r.market} {_format_number(r.modal_price)}" for r in context.prices[1:4]
             )
-            sentences.append(f"आसपास की दूसरी मंडियाँ: {listed}।")
+            sentences.append(template(language, "others").format(listed=listed))
     else:
-        sentences.append(f"{where} के पास {crop} का कोई ताज़ा मंडी भाव नहीं मिला।")
+        sentences.append(template(language, "none").format(crop=crop, where=where))
 
     if context.prediction:
-        if context.prediction.recommendation == "SELL":
-            sentences.append(
-                f"हमारी सलाह है कि अभी बेच दें। भरोसा "
-                f"{context.prediction.confidence * 100:.0f} प्रतिशत।"
+        key = "sell" if context.prediction.recommendation == "SELL" else "wait"
+        sentences.append(
+            template(language, key).format(
+                reason=context.prediction.reason.rstrip(". "),
+                confidence=f"{context.prediction.confidence * 100:.0f}",
             )
-        else:
-            sentences.append(
-                f"हमारी सलाह है कि अभी रुक जाएँ। भरोसा "
-                f"{context.prediction.confidence * 100:.0f} प्रतिशत।"
-            )
+        )
 
     if context.trend:
-        direction = {
-            "upward": "बढ़ रहा है", "downward": "घट रहा है", "stable": "एक जैसा है"
-        }[context.trend.direction]
-        sentences.append(
-            f"पिछले कुछ हफ़्तों में भाव {direction} "
-            f"(7 दिन का औसत {context.trend.ema_7:.0f} रुपये, "
-            f"30 दिन का औसत {context.trend.ema_30:.0f} रुपये)।"
+        direction = template(
+            language,
+            {"upward": "rising", "downward": "falling", "stable": "steady"}[
+                context.trend.direction
+            ],
         )
+        sentences.append(
+            template(language, "trend").format(
+                direction=direction,
+                ema7=_format_number(context.trend.ema_7),
+                ema30=_format_number(context.trend.ema_30),
+            )
+        )
+
+    if context.forecast and context.forecast.points:
+        final = context.forecast.points[-1]
+        change = context.forecast.expected_change_pct
+        sentences.append(
+            template(language, "forecast").format(
+                value=_format_number(final.value),
+                horizon=final.horizon,
+                change=f"{change:+.1f}" if change is not None else "0.0",
+                lower=_format_number(final.lower),
+                upper=_format_number(final.upper),
+            )
+        )
+
+    # Weather is only worth a sentence when it actually implies something.
+    if context.weather and context.weather.supply_risk != "normal":
+        note = context.weather.summary_hi if language != "en" else context.weather.summary
+        sentences.append(template(language, "weather").format(weather=note))
 
     if context.buyers:
         names = ", ".join(b.apmc_name for b in context.buyers[:3])
-        sentences.append(f"{where} के पास खरीदार: {names}।")
+        sentences.append(template(language, "buyers").format(where=where, names=names))
 
     if context.degraded:
-        sentences.append(
-            "ध्यान दें: सरकारी लाइव आँकड़े अभी नहीं मिल पाए, इसलिए ये भाव संदर्भ डेटा से हैं। "
-            "मंडी जाकर एक बार पक्का कर लें।"
-        )
+        sentences.append(template(language, "degraded"))
 
-    return " ".join(sentences)
+    return " ".join(s for s in sentences if s)
 
 
 # --------------------------------------------------------------------------- #
@@ -182,6 +163,21 @@ def _build_context_block(context: AgentContext) -> str:
             f"EMA-30 Rs {context.trend.ema_30:.0f}, volatility {context.trend.volatility:.4f}."
         )
 
+    if context.forecast and context.forecast.points:
+        final = context.forecast.points[-1]
+        lines.append(
+            f"TRAINED FORECAST ({context.forecast.model}): Rs {final.value:.0f} per quintal "
+            f"in {final.horizon} days, 95% interval Rs {final.lower:.0f}-{final.upper:.0f}, "
+            f"backtested error {context.forecast.mape}%."
+        )
+
+    if context.weather:
+        lines.append(
+            f"WEATHER ({context.weather.source}): {context.weather.summary} "
+            f"Supply risk {context.weather.supply_risk}, price pressure "
+            f"{context.weather.price_pressure}."
+        )
+
     if context.prediction:
         lines.append(
             f"SELL DECISION: {context.prediction.recommendation} at confidence "
@@ -207,13 +203,20 @@ def _build_context_block(context: AgentContext) -> str:
     return "\n".join(lines)
 
 
-_SEPARATOR = "-----HINDI-----"
+_SEPARATOR = "-----NEXT-----"
 
 
-def _llm_answers(context: AgentContext) -> tuple[str, str] | None:
+def _llm_answers(context: AgentContext, languages: list[str]) -> dict[str, str] | None:
+    """Ask the model for the answer in each requested language."""
     handle = get_llm()
     if handle is None:
         return None
+
+    named = [get_language(code) for code in languages]
+    instructions = "\n".join(
+        f"{index + 1}. {spec.english_name} ({spec.name}), written in its own script"
+        for index, spec in enumerate(named)
+    )
 
     prompt = f"""{GROUNDING_RULES}
 
@@ -227,20 +230,20 @@ CONTEXT:
 ANALYSIS PREPARED BY THE REASONING AGENT:
 {context.narrative}
 
-Write two answers to the farmer's question, separated by a line containing
-exactly {_SEPARATOR}. Write the English answer first, then the Hindi answer in
-Devanagari script. Each answer should be three to five short sentences.
+Write the answer to the farmer's question in each of these languages, in this
+order, separated by a line containing exactly {_SEPARATOR}:
+
+{instructions}
+
+Each answer should be three to five short sentences. Do not label them.
 """
 
     try:  # pragma: no cover - requires credentials
         raw = handle.complete(prompt)
-        if _SEPARATOR not in raw:
+        parts = [part.strip() for part in raw.split(_SEPARATOR)]
+        if len(parts) < len(languages) or not all(parts[: len(languages)]):
             return None
-        english, hindi = raw.split(_SEPARATOR, 1)
-        english, hindi = english.strip(), hindi.strip()
-        if not english or not hindi:
-            return None
-        return english, hindi
+        return dict(zip(languages, parts))
     except Exception as exc:
         logger.warning("LLM generation failed (%s); using template generator", exc)
         return None
@@ -250,18 +253,32 @@ Devanagari script. Each answer should be three to five short sentences.
 # Agent
 # --------------------------------------------------------------------------- #
 class AnswerGenerationAgent:
-    """Produce the bilingual farmer-facing answer, fact-checked before release."""
+    """Produce the farmer-facing answers, fact-checked before release."""
 
     name = "Answer Generation"
 
-    def run(self, context: AgentContext) -> tuple[str, str, FactCheckStatus]:
-        fact_checker = FactCheckAgent()
+    def _target_languages(self, context: AgentContext) -> list[str]:
+        """The farmer's own language, plus the two the report's schema requires.
 
-        generated = _llm_answers(context)
+        English and Hindi are always produced so `english_answer` and
+        `hindi_answer` stay populated for clients written against Section 4.7,
+        even when the farmer wrote in Tamil.
+        """
+        primary = context.response_language
+        ordered = [primary]
+        for code in ("en", "hi"):
+            if code not in ordered:
+                ordered.append(code)
+        return ordered
+
+    def run(self, context: AgentContext) -> tuple[dict[str, str], Language, FactCheckStatus]:
+        fact_checker = FactCheckAgent()
+        languages = self._target_languages(context)
+        primary = languages[0]
+
+        generated = _llm_answers(context, languages)
         if generated is not None:
-            english, hindi = generated
-            # Anything the model wrote is verified before it is shown.
-            fact_checker.run(context, generated_text=f"{english}\n{hindi}")
+            fact_checker.run(context, generated_text="\n".join(generated.values()))
             status = fact_checker.overall_status(context.claims)
             if status == "insufficient_evidence":
                 context.observe(
@@ -269,19 +286,25 @@ class AnswerGenerationAgent:
                     "Generated text contained an unsupported figure; falling back to the "
                     "grounded template answer.",
                 )
-                english, hindi = _english_answer(context), _hindi_answer(context)
-                fact_checker.run(context, generated_text=english)
-                status = fact_checker.overall_status(context.claims)
+                generated = None
             else:
-                context.observe(self.name, "Produced a bilingual answer from the language model.")
-        else:
-            english, hindi = _english_answer(context), _hindi_answer(context)
-            fact_checker.run(context, generated_text=english)
+                context.observe(
+                    self.name,
+                    f"Produced answers in {', '.join(languages)} from the language model.",
+                )
+
+        if generated is None:
+            generated = {code: render_answer(context, code) for code in languages}
+            fact_checker.run(context, generated_text=generated[primary])
             status = fact_checker.overall_status(context.claims)
             context.observe(
-                self.name, "Produced a bilingual answer from the grounded response templates."
+                self.name,
+                f"Produced answers in {', '.join(languages)} from the grounded "
+                f"response templates.",
             )
 
-        english = fact_checker.strip_unverified(english, context.claims)
-        hindi = fact_checker.strip_unverified(hindi, context.claims)
-        return english, hindi, status  # type: ignore[return-value]
+        cleaned = {
+            code: fact_checker.strip_unverified(text, context.claims)
+            for code, text in generated.items()
+        }
+        return cleaned, primary, status  # type: ignore[return-value]

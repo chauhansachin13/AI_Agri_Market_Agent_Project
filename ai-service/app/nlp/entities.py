@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from ..i18n.registry import LANGUAGES
 from .lexicon import (
     CROP_HINDI_LABEL,
     CROP_VOCABULARY,
@@ -11,19 +12,62 @@ from .lexicon import (
     UNIT_TO_QUINTAL,
 )
 
+# Units are written in every supported script, so the pattern must accept
+# Devanagari, Bengali and Tamil letters as well as Latin.
 _QUANTITY_PATTERN = re.compile(
-    r"(?P<value>\d+(?:[.,]\d+)?)\s*(?P<unit>[A-Za-zऀ-ॿ]+)",
+    r"(?P<value>\d+(?:[.,]\d+)?)\s*(?P<unit>[A-Za-zऀ-ॿঀ-৿஀-௿]+)",
     re.UNICODE,
 )
+
+
+def _regional_crop_forms() -> list[tuple[str, str]]:
+    """Crop surface forms contributed by every regional language.
+
+    A Marathi farmer writes "कांदा", not "प्याज"; without this the crop simply
+    would not be recognised and the whole answer would degrade.
+    """
+    forms: list[tuple[str, str]] = []
+    for spec in LANGUAGES.values():
+        for commodity, label in spec.crop_names.items():
+            forms.append((label, commodity))
+        for commodity, extras in spec.extra_crop_forms.items():
+            forms.extend((extra, commodity) for extra in extras)
+    return forms
+
+# Dependent vowel signs (matras) that carry case and number in Indic scripts.
+_MATRAS = "ािीुूृेैोौंँः্ািীুূেৈোৌং" "ாிீுூெேைொோௌ்"
+
+
+def _indic_stem(form: str) -> str | None:
+    """The consonant stem of an Indic word, with trailing vowel signs removed.
+
+    Indic languages inflect by replacing the final vowel sign rather than
+    appending: Marathi कांदा (onion) becomes कांद्याचा in the oblique, so the
+    citation form is not a prefix of the inflected one and a plain containment
+    check misses it entirely. Matching on the stem recovers these.
+    """
+    stem = form.rstrip(_MATRAS)
+    # Keep enough of the word that the stem is still discriminative.
+    if len(stem) >= 3 and stem != form:
+        return stem
+    return None
+
 
 def _surface_variants(form: str) -> list[str]:
     """Accepted written forms of one vocabulary entry.
 
     Farmers write "onions" as readily as "onion", and the lexicon stores only
-    the singular. Devanagari does not pluralise this way, so variants are
-    generated for ASCII forms only.
+    the singular. Indic scripts do not pluralise that way — they inflect the
+    ending — so each script family gets the treatment that fits it.
     """
     variants = [form]
+
+    if not form.isascii():
+        stem = _indic_stem(form)
+        if stem:
+            variants.append(stem)
+        return variants
+
     if form.isascii() and len(form) > 2:
         if form.endswith(("s", "sh", "ch", "x", "z", "o")):
             # tomato -> tomatoes, potato -> potatoes
@@ -39,8 +83,15 @@ def _surface_variants(form: str) -> list[str]:
 _CROP_FORMS: list[tuple[str, str]] = sorted(
     (
         (variant, commodity)
-        for commodity, forms in CROP_VOCABULARY.items()
-        for form in forms
+        for form_source in (
+            [
+                (form, commodity)
+                for commodity, forms in CROP_VOCABULARY.items()
+                for form in forms
+            ],
+            _regional_crop_forms(),
+        )
+        for form, commodity in form_source
         for variant in _surface_variants(form)
     ),
     key=lambda pair: len(pair[0]),
