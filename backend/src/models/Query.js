@@ -33,6 +33,7 @@ const querySchema = new mongoose.Schema(
       enum: ['verified', 'partially_verified', 'insufficient_evidence'],
     },
     reasoningSteps: [String],
+    channel: { type: String, enum: ['web', 'whatsapp'], default: 'web', index: true },
     degraded: { type: Boolean, default: false },
     elapsedMs: Number,
   },

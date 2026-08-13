@@ -4,6 +4,7 @@ import express from 'express';
 
 import { createApp } from '../src/app.js';
 import { invalidateCache } from '../src/services/mandiCache.js';
+import { resetMarketplace } from '../src/store/marketplace.js';
 import { resetMemoryStore } from '../src/store/index.js';
 
 let server;
@@ -185,6 +186,7 @@ export async function stopStubAiService() {
 
 export function resetStore() {
   resetMemoryStore();
+  resetMarketplace();
   invalidateCache();
 }
 

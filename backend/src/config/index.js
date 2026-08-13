@@ -30,6 +30,17 @@ export const config = {
 
   rateLimitWindowMs: toInt(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
   rateLimitMax: toInt(process.env.RATE_LIMIT_MAX, 300),
+
+  // Section 6.3: WhatsApp Business API delivery. Every field is optional; the
+  // integration reports itself unconfigured rather than failing at startup.
+  whatsapp: {
+    graphUrl: process.env.WHATSAPP_GRAPH_URL || 'https://graph.facebook.com',
+    apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
+    token: process.env.WHATSAPP_TOKEN || '',
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || '',
+    appSecret: process.env.WHATSAPP_APP_SECRET || '',
+  },
 };
 
 if (config.nodeEnv === 'production' && config.jwtSecret.startsWith('development-only')) {
