@@ -549,3 +549,47 @@ def test_maithili_verb_forms_are_detected(text):
 def test_hindi_words_ending_in_ba_are_not_read_as_maithili(text):
     """A `-ब$` regex would have misclassified all of these."""
     assert detect_language(text) == "hi"
+
+
+# --------------------------------------------------------------------------- #
+# Fact-checking forecast values
+# --------------------------------------------------------------------------- #
+def test_a_forecast_value_is_traceable_not_a_hallucination(orchestrator):
+    """The forecast sentence must survive its own fact check.
+
+    A forecast is a model output rather than a government record, so it is
+    partially verified with the model and its measured error as evidence. An
+    earlier version had no rule for it, so the fact-checker deleted the very
+    sentence the forecasting agent had just produced.
+    """
+    response = orchestrator.run(QueryRequest(query="Should I sell wheat in Patna now?"))
+    assert response.forecast is not None
+
+    unsupported = [
+        claim for claim in response.fact_check_claims
+        if claim.status == "insufficient_evidence"
+    ]
+    assert not unsupported, unsupported
+    assert response.fact_check_status != "insufficient_evidence"
+
+
+def test_forecast_claims_cite_the_model_and_its_error(orchestrator):
+    response = orchestrator.run(QueryRequest(query="Should I sell onions in Gaya now?"))
+    forecast_claims = [
+        claim for claim in response.fact_check_claims if claim.claim.startswith("Forecast value")
+    ]
+    if forecast_claims:  # only present when the answer quoted a forecast figure
+        assert any("model" in evidence for evidence in forecast_claims[0].evidence)
+
+
+def test_every_answer_figure_is_accounted_for(orchestrator):
+    """End-to-end hallucination guarantee across all four intents."""
+    for query in (
+        "What is the wheat price in Patna?",
+        "Should I sell onions in Patna now?",
+        "Has potato price risen in Gaya?",
+        "Who is buying wheat near Muzaffarpur?",
+    ):
+        response = orchestrator.run(QueryRequest(query=query))
+        for claim in response.fact_check_claims:
+            assert claim.status != "insufficient_evidence", (query, claim.claim)

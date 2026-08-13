@@ -28,6 +28,11 @@ services:
       MONGO_URI: "${MONGO_URI:-}"
       JWT_SECRET: "${JWT_SECRET:-development-only-secret-change-me}"
       CORS_ORIGINS: "http://localhost:5173"
+      # WhatsApp delivery is off unless these are supplied.
+      WHATSAPP_TOKEN: "${WHATSAPP_TOKEN:-}"
+      WHATSAPP_PHONE_NUMBER_ID: "${WHATSAPP_PHONE_NUMBER_ID:-}"
+      WHATSAPP_VERIFY_TOKEN: "${WHATSAPP_VERIFY_TOKEN:-}"
+      WHATSAPP_APP_SECRET: "${WHATSAPP_APP_SECRET:-}"
     depends_on:
       ai-service:
         condition: service_healthy

@@ -614,6 +614,29 @@ class FactCheckAgent:
                     return record
         return None
 
+    def _from_forecast(self, value: float, forecast) -> str | None:
+        """Match a figure against a forecast point or one of its interval bounds."""
+        if forecast is None or not getattr(forecast, "points", None):
+            return None
+
+        for point in forecast.points:
+            for candidate, kind in (
+                (point.value, "point forecast"),
+                (point.lower, "lower bound of the 95% interval"),
+                (point.upper, "upper bound of the 95% interval"),
+            ):
+                if self._close(value, candidate):
+                    accuracy = (
+                        f", backtested error {forecast.mape:.1f}%"
+                        if forecast.mape is not None
+                        else ""
+                    )
+                    return (
+                        f"{kind} at day {point.horizon} from the {forecast.model} model "
+                        f"trained on {forecast.trained_on} days{accuracy}"
+                    )
+        return None
+
     def _derived_from_records(self, value: float, prices: list[PriceRecord]) -> str | None:
         """Recognise a figure computed from fetched records rather than quoted.
 
@@ -681,6 +704,22 @@ class FactCheckAgent:
                         claim=f"Moving-average value of Rs {value:.0f} per quintal",
                         status="partially_verified",
                         evidence=["Derived from the EMA trend model, not a single mandi record"],
+                    )
+                )
+                continue
+
+            # A forecast value is a model output, not a government record. It
+            # is traceable — to a named model with a measured error — so it is
+            # partially verified rather than unsupported. Without this the
+            # fact-checker deletes the forecast sentence it was just asked to
+            # produce.
+            forecast_match = self._from_forecast(value, context.forecast)
+            if forecast_match is not None:
+                claims.append(
+                    FactCheckClaim(
+                        claim=f"Forecast value of Rs {value:.0f} per quintal",
+                        status="partially_verified",
+                        evidence=[forecast_match],
                     )
                 )
                 continue

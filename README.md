@@ -1,9 +1,13 @@
 # AI-Powered Local Agri-Market Intelligence and Farmer–Buyer Connect System
 
-A multi-agent, bilingual, explainable AI platform that lets Indian farmers ask
-about mandi prices, buyers and selling decisions in plain Hindi or English, and
-answers them from **live Government of India data** — never from the language
-model's memory.
+A multi-agent, multilingual, explainable AI platform that lets Indian farmers
+ask about mandi prices, buyers and selling decisions in **their own language** —
+Hindi, Bhojpuri, Maithili, Marathi, Bengali, Tamil or English — and answers them
+from **live Government of India data**, never from the language model's memory.
+
+Farmers can reach it through the web app or over **WhatsApp**, see a **trained
+price forecast** for the week ahead, get a **weather-driven supply warning**,
+and sell directly through a **farmer–buyer marketplace**.
 
 > Sachin Chauhan (25CSM1S13) · M.Tech CSE, National Institute of Technology
 > Warangal · Summer Internship Project
@@ -85,13 +89,30 @@ Three tiers, communicating over REST.
 | **Fact-Check** | Verifies each claim against government data; suppresses unsupported figures |
 | **Answer Generation** | Produces the bilingual, farmer-friendly answer |
 
-### The five tools
+| **Price Forecasting** | Fits a trained model to the price history and projects it forward |
+| **Weather Impact** | Turns the district forecast into an anticipated supply signal |
+
+### The seven tools
 
 `mandi_prices` · `internet_search` · `resolve_location` · `historical_context` ·
-`price_trend`
+`price_trend` · `price_forecast` · `weather_outlook`
 
 The same tool implementations back both execution modes, so the offline
 pipeline exercises exactly the code the live agent runs.
+
+### Channels
+
+| Surface | What it offers |
+|---|---|
+| Web app | Voice chat, mandi board, trend + forecast charts, XAI panel, marketplace |
+| WhatsApp | The same answers over the channel rural India actually uses |
+
+### Languages
+
+हिंदी · भोजपुरी · मैथिली · मराठी · বাংলা · தமிழ் · English
+
+Detection separates the four Devanagari languages by dialect markers, including
+morphological ones. See [docs/LANGUAGES.md](docs/LANGUAGES.md).
 
 ---
 
@@ -171,6 +192,9 @@ fact check      : partially_verified
 | `GET` | `/mandi/buyers` | eNAM APMC and buyer contacts |
 | `GET` | `/mandi/trend` | EMA trend classification |
 | `GET` | `/mandi/series` | Daily modal price series for charting |
+| `GET` | `/mandi/forecast` | Trained forecast with prediction intervals |
+| `GET` | `/weather/outlook` | Weather outlook and its supply implication |
+| `GET` | `/languages` | Supported languages, for the picker |
 | `GET` | `/health` | Liveness, plus which integrations are active |
 
 ### Gateway (port 5000)
@@ -188,7 +212,15 @@ fact check      : partially_verified
 | `GET` | `/api/mandis/buyers` | — | Buyer contacts |
 | `GET` | `/api/prices/trend` | — | Trend analysis |
 | `GET` | `/api/prices/series` | — | Price series |
+| `GET` | `/api/prices/forecast` | — | Trained price forecast |
+| `GET` | `/api/prices/weather` | — | Weather supply signal |
 | `PATCH` | `/api/users/profile` | ✓ | Update profile |
+| `GET` | `/api/market/listings` | — | Browse produce listings |
+| `POST` | `/api/market/listings` | ✓ | List your produce |
+| `POST` | `/api/market/listings/:id/offers` | ✓ | Bid on a listing |
+| `POST` | `/api/market/offers/:id/accept` | ✓ | Accept a bid (closes the rest) |
+| `GET` | `/api/whatsapp/webhook` | — | Meta verification handshake |
+| `POST` | `/api/whatsapp/webhook` | HMAC | Inbound WhatsApp messages |
 
 ### Response schema
 
@@ -218,9 +250,9 @@ fact check      : partially_verified
 ## Tests
 
 ```bash
-cd ai-service && .venv/bin/python -m pytest tests/ -q   # 162 tests
-cd backend    && npm test                               # 43 tests
-cd frontend   && npm test                               # 22 tests
+cd ai-service && .venv/bin/python -m pytest tests/ -q   # 265 tests
+cd backend    && npm test                               # 94 tests
+cd frontend   && npm test                               # 40 tests
 ```
 
 The suites run fully offline — no API keys, no database, no network.
@@ -253,28 +285,40 @@ recorded as its evidence.
 
 **Why is the template generator not a stub?** It is the guaranteed-grounded
 generator: every number it emits is copied from a fetched record, so it cannot
-hallucinate by construction. It runs when no LLM is configured, and it is also
-the fallback when the LLM's output fails fact-checking.
+hallucinate by construction. It also means nothing that matters is
+machine-translated — a mistranslated "₹2,714 per quintal" is a real risk to a
+farmer. It runs when no LLM is configured, for every language, and it is the
+fallback when the LLM's output fails fact-checking.
+
+**Why report a forecast's error next to a baseline?** Because a confidently
+drawn projection that cannot beat guessing would still move the sell/wait
+advice. Confidence is scaled by measured skill, and the UI says plainly when a
+model is no better than a naive guess. See
+[docs/FORECASTING.md](docs/FORECASTING.md).
 
 ---
 
 ## Known limitations
 
-- Hindi speech recognition relies on the browser Web Speech API and degrades on
-  Bhojpuri- and Maithili-accented speech.
+- Speech recognition relies on the browser Web Speech API. Bhojpuri and
+  Maithili have no recogniser and borrow Hindi, which degrades on those accents.
 - The intent classifier weakens on queries spanning two intents; multi-label
   classification is the intended fix.
 - Agmarknet data freshness varies by state, lagging 24–48 hours in some. The UI
   labels record age, but cannot correct it.
-- Trend analysis uses exponential moving averages, not a trained time-series
-  model, so it does not capture non-linear harvest or policy shocks.
+- The forecaster sees only price history. Arrival volumes, MSP announcements and
+  export policy all move prices and none are inputs. Recursive multi-step
+  forecasting compounds error beyond about two weeks.
+- The offline dataset is smooth by construction, so backtested errors on it
+  flatter the model; real Agmarknet series are noisier.
+- The marketplace has no payments, escrow or identity verification. It connects
+  a farmer to a buyer; the transaction itself happens offline.
 
-## Roadmap
+## Still on the roadmap
 
-WhatsApp Business API delivery · regional language expansion via IndicBERT and
-NLLB-200 · LSTM/Transformer price forecasting · a transactional farmer–buyer
-marketplace · a React Native offline-capable app · federated personalisation ·
-IMD weather and satellite crop signals.
+A React Native offline-capable mobile app, federated learning for
+personalisation without centralising farmer data, and satellite-based crop
+monitoring alongside the weather signal.
 
 ---
 
