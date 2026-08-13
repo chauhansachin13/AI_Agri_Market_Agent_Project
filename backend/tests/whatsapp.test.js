@@ -229,3 +229,24 @@ describe('GET /api/whatsapp/status', () => {
     assert.equal(data.signatureVerification, true);
   });
 });
+
+describe('behaviour without outbound credentials', () => {
+  test('a signed webhook is still acknowledged', async () => {
+    // Meta must always get its 200, configured or not, or it retries forever.
+    const payload = inboundPayload();
+    const body = JSON.stringify(payload);
+    const response = await fetch(`${await startTestServer()}/api/whatsapp/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-hub-signature-256': sign(body) },
+      body,
+    });
+    assert.equal(response.status, 200);
+  });
+
+  test('status reports that replies cannot be sent', async () => {
+    const { data } = await api('/api/whatsapp/status');
+    assert.equal(data.configured, false);
+    // Signature verification is independent of outbound credentials.
+    assert.equal(data.signatureVerification, true);
+  });
+});

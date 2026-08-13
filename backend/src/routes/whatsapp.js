@@ -49,6 +49,19 @@ whatsappRouter.post(
     const messages = parseIncoming(req.body);
     res.sendStatus(200);
 
+    // Without outbound credentials there is no way to reply, so processing the
+    // message would only burn an agent run and log a failure per message. The
+    // signature still had to verify to get here, so this is a configuration
+    // gap worth stating once, not an error worth raising repeatedly.
+    if (messages.length > 0 && !isConfigured()) {
+      console.warn(
+        `[whatsapp] received ${messages.length} message(s) but no outbound ` +
+          'credentials are set, so no reply can be sent. Set WHATSAPP_TOKEN and ' +
+          'WHATSAPP_PHONE_NUMBER_ID to enable replies.',
+      );
+      return undefined;
+    }
+
     for (const message of messages) {
       handleMessage(message).catch((error) => {
         console.error('[whatsapp] failed to answer', message.messageId, error.message);
