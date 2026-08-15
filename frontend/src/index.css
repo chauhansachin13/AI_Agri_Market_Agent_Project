@@ -3,60 +3,224 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Surfaces are variables so the glass and card classes stay identical
+       between themes and only the values change. */
+    --surface: 255 255 255;
+    --surface-muted: 247 248 247;
+    --ink: 15 20 17;
+    --line: 16 24 20;
+    --line-alpha: 0.08;
+  }
+
+  .dark {
+    --surface: 26 32 29;
+    --surface-muted: 15 20 17;
+    --ink: 236 238 236;
+    --line: 255 255 255;
+    --line-alpha: 0.1;
+  }
+
+  * {
+    border-color: rgb(var(--line) / var(--line-alpha));
+  }
+
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-gradient-to-br from-mandi-50 via-white to-mandi-100 text-soil-900 antialiased;
-    @apply dark:from-soil-900 dark:via-soil-800 dark:to-soil-900 dark:text-mandi-50;
+    @apply bg-soil-50 text-soil-900 antialiased dark:bg-soil-950 dark:text-soil-100;
     min-height: 100vh;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+    text-rendering: optimizeLegibility;
   }
 
-  /* Devanagari needs a little more line height than Latin to stay readable. */
-  :lang(hi) {
-    line-height: 1.85;
+  /* Indic scripts need more leading than Latin at the same size, or the
+     matras above and below collide between lines. */
+  :lang(hi), :lang(bho), :lang(mai), :lang(mr), :lang(bn), :lang(ta) {
+    line-height: 1.8;
   }
+
+  h1, h2, h3, h4 {
+    @apply font-semibold tracking-tight;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    @apply bg-mandi-500/25;
+  }
+
+  /* Only show focus rings for keyboard users, but never remove them. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-mandi-500/70 ring-offset-2 ring-offset-soil-50 dark:ring-offset-soil-950;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-soil-300/60 dark:bg-soil-700;
+  }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-soil-400 dark:bg-soil-600; }
 }
 
 @layer components {
-  .glass {
-    @apply rounded-2xl border border-white/40 bg-white/60 shadow-lg backdrop-blur-md;
-    @apply dark:border-white/10 dark:bg-white/5;
+  /* --- surfaces ---------------------------------------------------------- */
+  .surface {
+    background-color: rgb(var(--surface));
+    @apply rounded-2xl border shadow-card;
   }
 
+  .glass {
+    @apply rounded-2xl border shadow-card backdrop-blur-xl;
+    background-color: rgb(var(--surface) / 0.72);
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-lift;
+  }
+
+  /* --- buttons ----------------------------------------------------------- */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-medium;
-    @apply transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-mandi-500;
-    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5;
+    @apply text-sm font-medium transition-all duration-200 ease-smooth;
+    @apply disabled:pointer-events-none disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply btn bg-mandi-600 text-white hover:bg-mandi-700;
+    @apply btn bg-mandi-600 text-white shadow-sm;
+    @apply hover:bg-mandi-700 hover:shadow-glow active:scale-[0.98];
   }
 
   .btn-ghost {
-    @apply btn border border-mandi-600/30 text-mandi-800 hover:bg-mandi-100;
-    @apply dark:text-mandi-200 dark:hover:bg-white/10;
+    @apply btn border bg-transparent;
+    @apply hover:bg-soil-900/[0.04] active:scale-[0.98] dark:hover:bg-white/[0.06];
   }
 
+  .btn-subtle {
+    @apply btn bg-mandi-50 text-mandi-800 hover:bg-mandi-100;
+    @apply dark:bg-mandi-500/10 dark:text-mandi-200 dark:hover:bg-mandi-500/20;
+  }
+
+  /* --- forms ------------------------------------------------------------- */
   .field {
-    @apply w-full rounded-xl border border-mandi-700/20 bg-white/80 px-4 py-2.5;
-    @apply text-soil-900 placeholder:text-soil-900/40;
-    @apply focus:border-mandi-500 focus:outline-none focus:ring-2 focus:ring-mandi-500/30;
-    @apply dark:border-white/10 dark:bg-white/5 dark:text-mandi-50 dark:placeholder:text-mandi-50/40;
+    @apply w-full rounded-xl border px-4 py-2.5 text-sm transition-all duration-200;
+    background-color: rgb(var(--surface));
+    @apply placeholder:text-soil-400;
+    @apply focus:border-mandi-500/60 focus:outline-none focus:ring-4 focus:ring-mandi-500/10;
+    @apply dark:placeholder:text-soil-500;
   }
 
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-soil-500 dark:text-soil-400;
+  }
+
+  /* --- chips ------------------------------------------------------------- */
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold;
+  }
+
+  .chip-neutral {
+    @apply chip bg-soil-900/[0.05] text-soil-600 dark:bg-white/[0.07] dark:text-soil-300;
+  }
+
+  .chip-mandi {
+    @apply chip bg-mandi-100 text-mandi-800 dark:bg-mandi-500/15 dark:text-mandi-300;
+  }
+
+  .chip-harvest {
+    @apply chip bg-harvest-100 text-harvest-700 dark:bg-harvest-500/15 dark:text-harvest-300;
+  }
+
+  .chip-danger {
+    @apply chip bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300;
+  }
+
+  /* --- layout helpers ---------------------------------------------------- */
+  .container-page {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-mandi-700 dark:text-mandi-400;
+  }
+
+  .muted {
+    @apply text-soil-500 dark:text-soil-400;
+  }
+
+  /* --- loading ----------------------------------------------------------- */
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-soil-200/70 dark:bg-soil-800;
+  }
+
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.35),
+      transparent
+    );
+  }
+
+  .dark .skeleton::after {
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / 0.06),
+      transparent
+    );
+  }
+}
+
+@layer utilities {
+  /* Soft aurora wash behind the hero. Rendered as radial gradients rather than
+     an image so it costs nothing on a slow rural connection. */
+  .aurora {
+    background-image:
+      radial-gradient(60rem 30rem at 12% -8%, rgb(34 197 94 / 0.16), transparent 60%),
+      radial-gradient(48rem 26rem at 92% 4%, rgb(245 158 11 / 0.12), transparent 62%),
+      radial-gradient(40rem 30rem at 50% 105%, rgb(22 163 74 / 0.1), transparent 65%);
+  }
+
+  .dark .aurora {
+    background-image:
+      radial-gradient(60rem 30rem at 12% -8%, rgb(34 197 94 / 0.14), transparent 60%),
+      radial-gradient(48rem 26rem at 92% 4%, rgb(245 158 11 / 0.08), transparent 62%),
+      radial-gradient(40rem 30rem at 50% 105%, rgb(22 163 74 / 0.1), transparent 65%);
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-br from-mandi-700 via-mandi-600 to-mandi-500 bg-clip-text text-transparent;
+    @apply dark:from-mandi-300 dark:via-mandi-400 dark:to-mandi-500;
+  }
+
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, rgb(16 24 20 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(16 24 20 / 0.045) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(60% 50% at 50% 40%, #000, transparent);
+  }
+
+  .dark .grid-lines {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
   }
 }
 
 /* Respect a reader who has asked the OS to reduce motion. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

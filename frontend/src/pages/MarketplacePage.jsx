@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 
 import * as api from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -30,17 +29,15 @@ function AskVsMandi({ ask, reference }) {
 
 function ListingCard({ listing, onSelect, index }) {
   return (
-    <motion.article
-      className="glass p-4"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.05, 0.3) }}
+    <article
+      className="surface card-hover animate-fade-up p-4"
+      style={{ animationDelay: `${Math.min(index * 45, 300)}ms` }}
       data-testid="listing-card"
     >
       <header className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-semibold">{listing.crop}</h3>
-          <p className="text-xs opacity-60">
+          <p className="muted text-xs">
             {listing.location?.district}
             {listing.location?.state ? `, ${listing.location.state}` : ''} · {listing.grade}
           </p>
@@ -54,18 +51,18 @@ function ListingCard({ listing, onSelect, index }) {
         {rupees(listing.askPricePerQuintal)}
         <span className="ml-1 text-xs font-normal opacity-60">/ quintal</span>
       </p>
-      <p className="text-sm opacity-70">{listing.quantityQuintal} quintal available</p>
+      <p className="muted text-sm">{listing.quantityQuintal} quintal available</p>
 
       <div className="mt-2">
         <AskVsMandi ask={listing.askPricePerQuintal} reference={listing.mandiReferencePrice} />
       </div>
 
-      {listing.notes && <p className="mt-2 text-xs opacity-70">{listing.notes}</p>}
+      {listing.notes && <p className="muted mt-2 text-xs">{listing.notes}</p>}
 
       <button type="button" onClick={() => onSelect(listing)} className="btn-ghost mt-3 w-full text-sm">
         View offers · ऑफर देखें
       </button>
-    </motion.article>
+    </article>
   );
 }
 
@@ -164,26 +161,26 @@ export default function MarketplacePage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Farmer–Buyer Marketplace</h1>
-        <p lang="hi" className="opacity-70">
+        <p lang="hi" className="muted">
           अपनी फसल सीधे खरीदार को बेचें
         </p>
       </header>
 
       {error && (
-        <p className="glass mb-4 p-3 text-sm text-red-700 dark:text-red-300">{error}</p>
+        <p className="surface mb-4 p-3 text-sm text-red-700 dark:text-red-300">{error}</p>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-4">
           {isAuthenticated ? (
-            <form onSubmit={submitListing} className="glass p-4">
+            <form onSubmit={submitListing} className="surface p-4">
               <h2 className="font-semibold">List your produce</h2>
-              <p lang="hi" className="mb-3 text-xs opacity-60">
+              <p lang="hi" className="muted mb-3 text-xs">
                 अपनी फसल यहाँ डालें
               </p>
 
               <label className="block text-sm">
-                <span className="mb-1 block opacity-70">Crop · फसल</span>
+                <span className="label">Crop · फसल</span>
                 <select
                   className="field"
                   value={form.crop}
@@ -196,7 +193,7 @@ export default function MarketplacePage() {
               </label>
 
               <label className="mt-3 block text-sm">
-                <span className="mb-1 block opacity-70">Quantity (quintal) · मात्रा</span>
+                <span className="label">Quantity (quintal) · मात्रा</span>
                 <input
                   className="field"
                   type="number"
@@ -209,7 +206,7 @@ export default function MarketplacePage() {
               </label>
 
               <label className="mt-3 block text-sm">
-                <span className="mb-1 block opacity-70">Asking price / quintal · भाव</span>
+                <span className="label">Asking price / quintal · भाव</span>
                 <input
                   className="field"
                   type="number"
@@ -221,7 +218,7 @@ export default function MarketplacePage() {
               </label>
 
               <label className="mt-3 block text-sm">
-                <span className="mb-1 block opacity-70">Notes · जानकारी</span>
+                <span className="label">Notes · जानकारी</span>
                 <input
                   className="field"
                   maxLength={500}
@@ -244,10 +241,10 @@ export default function MarketplacePage() {
             </p>
           )}
 
-          <div className="glass p-4">
+          <div className="surface p-4">
             <h2 className="mb-3 font-semibold">Filter</h2>
             <label className="block text-sm">
-              <span className="mb-1 block opacity-70">Crop</span>
+              <span className="label">Crop</span>
               <select className="field" value={crop} onChange={(e) => setCrop(e.target.value)}>
                 <option value="">All crops</option>
                 {CROPS.map((option) => (
@@ -256,7 +253,7 @@ export default function MarketplacePage() {
               </select>
             </label>
             <label className="mt-3 block text-sm">
-              <span className="mb-1 block opacity-70">District</span>
+              <span className="label">District</span>
               <input
                 className="field"
                 value={district}
@@ -268,10 +265,10 @@ export default function MarketplacePage() {
         </aside>
 
         <main>
-          {status === 'loading' && <p className="text-sm opacity-60">Loading…</p>}
+          {status === 'loading' && <p className="muted text-sm">Loading…</p>}
 
           {status === 'ready' && listings.length === 0 && (
-            <p className="glass p-6 text-center text-sm opacity-70">
+            <p className="surface p-6 text-center text-sm muted">
               No produce listed yet for this filter.
               <span lang="hi" className="mt-1 block">
                 अभी कोई फसल सूची में नहीं है।
@@ -291,13 +288,13 @@ export default function MarketplacePage() {
           </div>
 
           {selected && (
-            <section className="glass mt-6 p-5" data-testid="listing-detail">
+            <section className="surface mt-6 p-5" data-testid="listing-detail">
               <header className="flex items-start justify-between">
                 <div>
                   <h2 className="text-lg font-semibold">
                     {selected.crop} · {rupees(selected.askPricePerQuintal)}/qtl
                   </h2>
-                  <p className="text-xs opacity-60">
+                  <p className="muted text-xs">
                     {selected.quantityQuintal} quintal · {selected.location?.district} ·{' '}
                     {selected.status}
                   </p>
@@ -332,7 +329,7 @@ export default function MarketplacePage() {
                 Offers · ऑफर
               </h3>
               {offers.length === 0 ? (
-                <p className="mt-2 text-sm opacity-60">No offers yet.</p>
+                <p className="muted mt-2 text-sm">No offers yet.</p>
               ) : (
                 <ul className="mt-2 space-y-2">
                   {offers.map((offer) => (
@@ -341,7 +338,7 @@ export default function MarketplacePage() {
                       className="flex flex-wrap items-center gap-3 rounded-lg bg-black/5 p-3 text-sm dark:bg-white/5"
                     >
                       <span className="font-semibold">{rupees(offer.pricePerQuintal)}/qtl</span>
-                      <span className="opacity-70">{offer.quantityQuintal} qtl</span>
+                      <span className="muted">{offer.quantityQuintal} qtl</span>
                       <span className="chip bg-black/10 dark:bg-white/10">{offer.status}</span>
                       {offer.message && <span className="opacity-60">{offer.message}</span>}
 

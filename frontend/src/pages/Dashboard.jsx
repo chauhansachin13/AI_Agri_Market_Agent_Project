@@ -51,20 +51,20 @@ export default function Dashboard() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Live Mandi Board</h1>
-        <p lang="hi" className="opacity-70">
+        <p lang="hi" className="muted">
           आसपास की मंडियों के ताज़ा भाव
         </p>
       </header>
 
       <form
-        className="glass mb-6 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="surface mb-6 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(event) => {
           event.preventDefault();
           load();
         }}
       >
         <label className="text-sm">
-          <span className="mb-1 block opacity-70">Crop · फसल</span>
+          <span className="label">Crop · फसल</span>
           <select className="field" value={crop} onChange={(e) => setCrop(e.target.value)}>
             {CROPS.map((option) => (
               <option key={option} value={option}>
@@ -75,7 +75,7 @@ export default function Dashboard() {
         </label>
 
         <label className="text-sm">
-          <span className="mb-1 block opacity-70">State · राज्य</span>
+          <span className="label">State · राज्य</span>
           <select className="field" value={state} onChange={(e) => setState(e.target.value)}>
             {STATES.map((option) => (
               <option key={option} value={option}>
@@ -86,7 +86,7 @@ export default function Dashboard() {
         </label>
 
         <label className="text-sm">
-          <span className="mb-1 block opacity-70">District · जिला</span>
+          <span className="label">District · जिला</span>
           <input
             className="field"
             value={district}
@@ -109,14 +109,14 @@ export default function Dashboard() {
       )}
 
       {status === 'ready' && sorted.length === 0 && (
-        <p className="glass p-6 text-center text-sm opacity-70">
+        <p className="surface p-6 text-center text-sm muted">
           No mandi records reported for this crop and district on the latest arrival day.
         </p>
       )}
 
       {sorted.length > 0 && (
         <>
-          <div className="mb-3 flex flex-wrap items-center gap-3 text-xs opacity-60">
+          <div className="muted mb-3 flex flex-wrap items-center gap-3 text-xs">
             <span>{sorted.length} markets</span>
             {trend && <span className="capitalize">Trend: {trend.direction}</span>}
             {cached && <span>Served from cache</span>}

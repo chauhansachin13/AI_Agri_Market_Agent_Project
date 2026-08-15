@@ -79,7 +79,7 @@ export default function ConfidenceBar({ score = 0, label = 'Confidence', compact
         <p className="text-sm font-semibold" style={{ color }}>
           {en}
         </p>
-        <p lang="hi" className="text-xs opacity-70">
+        <p lang="hi" className="muted text-xs">
           {hi}
         </p>
       </figcaption>

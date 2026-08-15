@@ -35,7 +35,7 @@ export default function ChatPage() {
         )}
 
         {latest?.buyers?.length > 0 && (
-          <section className="glass p-4">
+          <section className="surface p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide opacity-60">
               Buyers · खरीदार
             </h2>
@@ -43,8 +43,8 @@ export default function ChatPage() {
               {latest.buyers.slice(0, 5).map((buyer) => (
                 <li key={buyer.apmc_name} className="text-sm">
                   <p className="font-medium">{buyer.apmc_name}</p>
-                  <p className="text-xs opacity-70">{buyer.address}</p>
-                  <p className="text-xs opacity-70">
+                  <p className="muted text-xs">{buyer.address}</p>
+                  <p className="muted text-xs">
                     {buyer.trading_hours}
                     {buyer.contact ? ` · ${buyer.contact}` : ''}
                   </p>

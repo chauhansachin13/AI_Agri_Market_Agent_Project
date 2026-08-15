@@ -47,11 +47,11 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-12">
-      <div className="glass p-6">
+      <div className="surface p-6">
         <h1 className="text-2xl font-bold">
           {mode === 'login' ? 'Sign in' : 'Create an account'}
         </h1>
-        <p lang="hi" className="mt-1 text-sm opacity-70">
+        <p lang="hi" className="muted mt-1 text-sm">
           {mode === 'login'
             ? 'अपने मोबाइल नंबर से लॉगिन करें'
             : 'अपना खाता बनाइए — भाव आपके जिले के हिसाब से मिलेंगे'}
@@ -60,13 +60,13 @@ export default function LoginPage() {
         <form onSubmit={submit} className="mt-6 space-y-4">
           {mode === 'register' && (
             <label className="block text-sm">
-              <span className="mb-1 block opacity-70">Name · नाम</span>
+              <span className="label">Name · नाम</span>
               <input className="field" value={form.name} onChange={update('name')} required />
             </label>
           )}
 
           <label className="block text-sm">
-            <span className="mb-1 block opacity-70">Mobile number · मोबाइल नंबर</span>
+            <span className="label">Mobile number · मोबाइल नंबर</span>
             <input
               className="field"
               type="tel"
@@ -81,7 +81,7 @@ export default function LoginPage() {
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block opacity-70">Password · पासवर्ड</span>
+            <span className="label">Password · पासवर्ड</span>
             <input
               className="field"
               type="password"
@@ -95,11 +95,11 @@ export default function LoginPage() {
           {mode === 'register' && (
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-sm">
-                <span className="mb-1 block opacity-70">State · राज्य</span>
+                <span className="label">State · राज्य</span>
                 <input className="field" value={form.state} onChange={update('state')} />
               </label>
               <label className="block text-sm">
-                <span className="mb-1 block opacity-70">District · जिला</span>
+                <span className="label">District · जिला</span>
                 <input className="field" value={form.district} onChange={update('district')} />
               </label>
             </div>
@@ -116,7 +116,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm opacity-70">
+        <p className="muted mt-4 text-center text-sm">
           {mode === 'login' ? 'New here?' : 'Already registered?'}{' '}
           <button
             type="button"
@@ -130,7 +130,7 @@ export default function LoginPage() {
           </button>
         </p>
 
-        <p className="mt-4 text-center text-xs opacity-60">
+        <p className="muted mt-4 text-center text-xs">
           You can ask questions without an account. Signing in saves your district and history.
         </p>
       </div>

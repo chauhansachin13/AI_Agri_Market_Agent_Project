@@ -1,5 +1,3 @@
-import { motion } from 'framer-motion';
-
 const formatPrice = (value) =>
   new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(value) || 0);
 
@@ -27,12 +25,12 @@ export default function MandiCard({ record, trend, best = false, index = 0 }) {
   const age = freshness(record.arrival_date);
 
   return (
-    <motion.article
+    <article
       data-testid="mandi-card"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.05, 0.4), duration: 0.35 }}
-      className={`glass relative p-4 ${best ? 'ring-2 ring-mandi-500' : ''}`}
+      className={`surface card-hover animate-fade-up relative p-4 ${
+        best ? 'ring-2 ring-mandi-500' : ''
+      }`}
+      style={{ animationDelay: `${Math.min(index * 45, 360)}ms` }}
     >
       {best && (
         <span className="chip absolute -top-2.5 right-3 bg-mandi-600 text-white">
@@ -44,7 +42,7 @@ export default function MandiCard({ record, trend, best = false, index = 0 }) {
         <h3 className="truncate text-base font-semibold" title={record.market}>
           {record.market}
         </h3>
-        <p className="text-xs opacity-60">
+        <p className="muted text-xs">
           {record.district}, {record.state}
         </p>
       </header>
@@ -53,7 +51,7 @@ export default function MandiCard({ record, trend, best = false, index = 0 }) {
         <span className="text-2xl font-bold text-mandi-700 dark:text-mandi-300">
           ₹{formatPrice(record.modal_price)}
         </span>
-        <span className="text-xs opacity-60">/ quintal</span>
+        <span className="muted text-xs">/ quintal</span>
         {mark && (
           <span className={`ml-auto text-sm font-semibold ${mark.className}`} title={mark.en}>
             {mark.glyph} {mark.en}
@@ -61,7 +59,7 @@ export default function MandiCard({ record, trend, best = false, index = 0 }) {
         )}
       </div>
 
-      <dl className="mt-2 flex gap-4 text-xs opacity-70">
+      <dl className="muted mt-2 flex gap-4 text-xs">
         <div>
           <dt className="inline">Min </dt>
           <dd className="inline font-medium">₹{formatPrice(record.min_price)}</dd>
@@ -72,7 +70,7 @@ export default function MandiCard({ record, trend, best = false, index = 0 }) {
         </div>
       </dl>
 
-      <footer className="mt-3 flex items-center justify-between text-[11px]">
+      <footer className="muted mt-3 flex items-center justify-between text-2xs">
         <span className="opacity-60">{record.commodity}</span>
         {age && (
           <span
@@ -87,6 +85,6 @@ export default function MandiCard({ record, trend, best = false, index = 0 }) {
           </span>
         )}
       </footer>
-    </motion.article>
+    </article>
   );
 }

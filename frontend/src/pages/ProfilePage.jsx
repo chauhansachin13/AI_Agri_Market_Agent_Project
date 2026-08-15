@@ -70,20 +70,20 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto grid max-w-4xl gap-6 px-4 py-8 md:grid-cols-2">
-      <form onSubmit={submit} className="glass p-6">
+      <form onSubmit={submit} className="surface p-6">
         <h1 className="text-xl font-bold">Your profile</h1>
-        <p lang="hi" className="text-sm opacity-70">
+        <p lang="hi" className="muted text-sm">
           आपकी जानकारी
         </p>
 
         <div className="mt-5 space-y-4">
           <label className="block text-sm">
-            <span className="mb-1 block opacity-70">Name · नाम</span>
+            <span className="label">Name · नाम</span>
             <input className="field" value={form.name} onChange={update('name')} />
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block opacity-70">Answer language · जवाब की भाषा</span>
+            <span className="label">Answer language · जवाब की भाषा</span>
             <select
               className="field"
               value={form.preferredLanguage}
@@ -96,17 +96,17 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm">
-              <span className="mb-1 block opacity-70">State</span>
+              <span className="label">State</span>
               <input className="field" value={form.state} onChange={update('state')} />
             </label>
             <label className="block text-sm">
-              <span className="mb-1 block opacity-70">District</span>
+              <span className="label">District</span>
               <input className="field" value={form.district} onChange={update('district')} />
             </label>
           </div>
 
           <label className="block text-sm">
-            <span className="mb-1 block opacity-70">Pincode · पिन कोड</span>
+            <span className="label">Pincode · पिन कोड</span>
             <input
               className="field"
               value={form.pincode}
@@ -117,7 +117,7 @@ export default function ProfilePage() {
           </label>
 
           <label className="block text-sm">
-            <span className="mb-1 block opacity-70">Your crops · आपकी फसलें</span>
+            <span className="label">Your crops · आपकी फसलें</span>
             <input
               className="field"
               value={form.crops}
@@ -139,20 +139,20 @@ export default function ProfilePage() {
         </button>
       </form>
 
-      <section className="glass p-6">
+      <section className="surface p-6">
         <h2 className="text-xl font-bold">Recent questions</h2>
-        <p lang="hi" className="text-sm opacity-70">
+        <p lang="hi" className="muted text-sm">
           आपके पिछले सवाल
         </p>
 
         {history.length === 0 ? (
-          <p className="mt-4 text-sm opacity-60">No questions yet.</p>
+          <p className="muted mt-4 text-sm">No questions yet.</p>
         ) : (
           <ul className="mt-4 space-y-3">
             {history.map((row) => (
               <li key={row._id} className="border-b border-black/5 pb-2 last:border-0 dark:border-white/10">
                 <p className="text-sm">{row.text}</p>
-                <p className="mt-0.5 text-xs opacity-60">
+                <p className="muted mt-0.5 text-xs">
                   {row.intent}
                   {row.recommendation ? ` · ${row.recommendation}` : ''}
                   {typeof row.confidenceScore === 'number'

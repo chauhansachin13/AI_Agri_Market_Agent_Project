@@ -61,20 +61,20 @@ export default function PricePage() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Price Trends</h1>
-        <p lang="hi" className="opacity-70">
+        <p lang="hi" className="muted">
           भाव का रुझान — कब बेचना ठीक रहेगा
         </p>
       </header>
 
       <form
-        className="glass mb-6 grid gap-3 p-4 sm:grid-cols-3"
+        className="surface mb-6 grid gap-3 p-4 sm:grid-cols-3"
         onSubmit={(event) => {
           event.preventDefault();
           load();
         }}
       >
         <label className="text-sm">
-          <span className="mb-1 block opacity-70">Crop · फसल</span>
+          <span className="label">Crop · फसल</span>
           <select className="field" value={crop} onChange={(e) => setCrop(e.target.value)}>
             {CROPS.map((option) => (
               <option key={option} value={option}>
@@ -85,7 +85,7 @@ export default function PricePage() {
         </label>
 
         <label className="text-sm">
-          <span className="mb-1 block opacity-70">District · जिला</span>
+          <span className="label">District · जिला</span>
           <input
             className="field"
             value={district}
@@ -95,7 +95,7 @@ export default function PricePage() {
         </label>
 
         <label className="text-sm">
-          <span className="mb-1 block opacity-70">Window · अवधि</span>
+          <span className="label">Window · अवधि</span>
           <select
             className="field"
             value={days}
@@ -122,10 +122,12 @@ export default function PricePage() {
           <ForecastChart history={series} forecast={forecast} crop={crop} />
         </div>
 
+        {/* self-start so the card hugs its content instead of stretching to the
+            height of the two stacked charts beside it. */}
         {trend && (
-          <aside className="glass flex flex-col items-center justify-center p-5">
+          <aside className="surface flex flex-col items-center justify-center self-start p-5">
             <ConfidenceBar score={trend.confidence} label="Trend confidence" />
-            <dl className="mt-4 w-full space-y-1 text-xs opacity-75">
+            <dl className="muted mt-4 w-full space-y-1 text-xs">
               <div className="flex justify-between">
                 <dt>Direction</dt>
                 <dd className="font-medium capitalize">{trend.direction}</dd>
@@ -139,7 +141,7 @@ export default function PricePage() {
                 <dd className="font-medium">{trend.samples}</dd>
               </div>
             </dl>
-            <p className="mt-4 text-[11px] opacity-60">
+            <p className="muted mt-4 text-[11px]">
               Confidence falls when prices are volatile, even if the direction looks clear.
             </p>
           </aside>

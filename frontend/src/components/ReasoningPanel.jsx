@@ -36,7 +36,7 @@ function stepParts(step) {
 export default function ReasoningPanel({ response, open = true }) {
   if (!response) {
     return (
-      <aside className="glass p-5" data-testid="reasoning-panel-empty">
+      <aside className="surface p-5" data-testid="reasoning-panel-empty">
         <h2 className="text-sm font-semibold uppercase tracking-wide opacity-60">
           AI Reasoning · सोचने का तरीका
         </h2>
@@ -55,7 +55,7 @@ export default function ReasoningPanel({ response, open = true }) {
   const status = STATUS_STYLE[response.fact_check_status] || STATUS_STYLE.insufficient_evidence;
 
   return (
-    <aside className="glass p-5" data-testid="reasoning-panel">
+    <aside className="surface p-5" data-testid="reasoning-panel">
       <header className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide opacity-60">
           AI Reasoning · सोचने का तरीका
@@ -130,7 +130,7 @@ export default function ReasoningPanel({ response, open = true }) {
           <h3 className="text-xs font-semibold uppercase tracking-wide opacity-60">
             Historical context retrieved
           </h3>
-          <ul className="mt-2 space-y-1 text-xs opacity-70">
+          <ul className="muted mt-2 space-y-1 text-xs">
             {response.retrieved_context.slice(0, 5).map((citation, index) => (
               <li key={index} className="truncate" title={citation}>
                 {citation}

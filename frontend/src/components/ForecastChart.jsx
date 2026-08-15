@@ -32,7 +32,7 @@ function ForecastTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload || {};
   return (
-    <div className="glass px-3 py-2 text-xs">
+    <div className="glass px-3 py-2 text-xs shadow-lift">
       <p className="font-semibold">{shortDate(label)}</p>
       {row.observed != null && <p className="opacity-80">Actual {formatRupees(row.observed)}</p>}
       {row.predicted != null && (
@@ -58,7 +58,7 @@ function skillLabel(forecast) {
 export default function ForecastChart({ history = [], forecast, crop }) {
   if (!forecast?.points?.length) {
     return (
-      <div className="glass p-6 text-center text-sm opacity-70" data-testid="forecast-empty">
+      <div className="surface p-6 text-center text-sm muted" data-testid="forecast-empty">
         No forecast available for this crop and district yet.
         <span lang="hi" className="mt-1 block">
           इस फसल का अनुमान अभी उपलब्ध नहीं है।
@@ -108,13 +108,13 @@ export default function ForecastChart({ history = [], forecast, crop }) {
   const domain = [Math.floor(low - pad), Math.ceil(high + pad)];
 
   return (
-    <section className="glass p-4" data-testid="forecast-chart">
+    <section className="surface p-4" data-testid="forecast-chart">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold">
             {crop ? `${crop} forecast` : 'Price forecast'}
           </h3>
-          <p lang="hi" className="text-xs opacity-60">
+          <p lang="hi" className="muted text-xs">
             आगे भाव क्या रहेगा — अनुमान
           </p>
         </div>
@@ -187,7 +187,7 @@ export default function ForecastChart({ history = [], forecast, crop }) {
         </ResponsiveContainer>
       </div>
 
-      <footer className="mt-2 space-y-1 text-xs opacity-70">
+      <footer className="muted mt-2 space-y-1 text-xs">
         <p>
           {forecast.model_name} model, trained on {forecast.trained_on} days
           {skill ? ` · ${skill}` : ''}

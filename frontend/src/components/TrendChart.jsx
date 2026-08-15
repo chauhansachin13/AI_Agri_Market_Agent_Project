@@ -36,7 +36,7 @@ const shortDate = (iso) => {
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="glass px-3 py-2 text-xs">
+    <div className="glass px-3 py-2 text-xs shadow-lift">
       <p className="font-semibold">{shortDate(label)}</p>
       <p className="opacity-80">{formatRupees(payload[0].value)} per quintal</p>
     </div>
@@ -46,7 +46,7 @@ function ChartTooltip({ active, payload, label }) {
 export default function TrendChart({ points = [], trend, prediction, crop }) {
   if (!points.length) {
     return (
-      <div className="glass p-6 text-center text-sm opacity-70" data-testid="trend-chart-empty">
+      <div className="surface p-6 text-center text-sm muted" data-testid="trend-chart-empty">
         No price history available yet for this crop and district.
         <span lang="hi" className="mt-1 block">
           इस फसल का पुराना भाव अभी उपलब्ध नहीं है।
@@ -64,11 +64,11 @@ export default function TrendChart({ points = [], trend, prediction, crop }) {
   const padding = Math.max((max - min) * 0.15, 25);
 
   return (
-    <section className="glass p-4" data-testid="trend-chart">
+    <section className="surface p-4" data-testid="trend-chart">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-semibold">{crop ? `${crop} price trend` : 'Price trend'}</h3>
-          <p lang="hi" className="text-xs opacity-60">
+          <p lang="hi" className="muted text-xs">
             पिछले दिनों का भाव
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function TrendChart({ points = [], trend, prediction, crop }) {
       </div>
 
       {trend && (
-        <footer className="mt-2 flex flex-wrap gap-4 text-xs opacity-70">
+        <footer className="muted mt-2 flex flex-wrap gap-4 text-xs">
           <span>7-day avg {formatRupees(trend.ema_7)}</span>
           <span>14-day avg {formatRupees(trend.ema_14)}</span>
           <span>30-day avg {formatRupees(trend.ema_30)}</span>

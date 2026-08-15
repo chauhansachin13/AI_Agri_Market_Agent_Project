@@ -1,5 +1,3 @@
-import { motion } from 'framer-motion';
-
 /**
  * Weather outlook and its supply implication (§6.3).
  *
@@ -42,12 +40,7 @@ export default function WeatherCard({ weather, language = 'hi' }) {
   const summary = language === 'en' ? weather.summary : weather.summary_hi || weather.summary;
 
   return (
-    <motion.section
-      className="glass p-4"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      data-testid="weather-card"
-    >
+    <section className="surface animate-fade-up p-4" data-testid="weather-card">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold">
@@ -56,7 +49,7 @@ export default function WeatherCard({ weather, language = 'hi' }) {
             </span>
             {risk.en}
           </h3>
-          <p lang="hi" className="text-xs opacity-70">
+          <p lang="hi" className="muted text-xs">
             {risk.hi}
           </p>
         </div>
@@ -86,12 +79,12 @@ export default function WeatherCard({ weather, language = 'hi' }) {
         </div>
       </dl>
 
-      <footer className="mt-3 flex items-center justify-between text-[11px] opacity-60">
+      <footer className="muted mt-3 flex items-center justify-between text-2xs">
         <span>
           {weather.live ? `Live forecast (${weather.source})` : 'Seasonal model — no live forecast'}
         </span>
         <span>{Math.round(weather.confidence * 100)}% confidence</span>
       </footer>
-    </motion.section>
+    </section>
   );
 }
