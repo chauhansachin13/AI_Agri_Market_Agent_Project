@@ -265,3 +265,36 @@ describe('routing', () => {
     assert.match(data.error, /Route not found/);
   });
 });
+
+describe('language auto-detection', () => {
+  test("'auto' is forwarded as no override, so detection decides", async () => {
+    await api('/api/queries', {
+      method: 'POST',
+      body: { query: 'कांद्याचा भाव किती आहे?', languageOverride: 'auto' },
+    });
+    const forwarded = stub.calls.find((c) => c.path === '/agent/query');
+    assert.equal(forwarded.body.language_override, null);
+  });
+
+  test("'auto' is not replaced by the profile preference", async () => {
+    // Otherwise a Marathi question from a farmer whose profile says Hindi
+    // would be answered in Hindi despite them asking for detection.
+    const { token } = await registerFarmer({ preferredLanguage: 'hi' });
+    await api('/api/queries', {
+      method: 'POST',
+      token,
+      body: { query: 'कांद्याचा भाव किती आहे?', languageOverride: 'auto' },
+    });
+    const forwarded = stub.calls.find((c) => c.path === '/agent/query');
+    assert.equal(forwarded.body.language_override, null);
+  });
+
+  test('an explicit language is still honoured', async () => {
+    await api('/api/queries', {
+      method: 'POST',
+      body: { query: 'wheat price', languageOverride: 'ta' },
+    });
+    const forwarded = stub.calls.find((c) => c.path === '/agent/query');
+    assert.equal(forwarded.body.language_override, 'ta');
+  });
+});

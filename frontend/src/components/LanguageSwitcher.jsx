@@ -9,7 +9,14 @@ import { useAuth } from '../context/AuthContext.jsx';
  * Each language is listed in its own script — a Bhojpuri speaker looks for
  * "भोजपुरी", not "Bhojpuri". The list comes from the service so adding a
  * language server-side needs no frontend change.
+ *
+ * "Auto" is the default and sends no override, letting detection answer in
+ * whatever language the question was actually asked in. Defaulting to a fixed
+ * language instead would silently defeat the feature: a farmer typing Marathi
+ * would be answered in Hindi purely because they never opened this menu.
  */
+
+export const AUTO = 'auto';
 
 const FALLBACK = [
   { code: 'hi', name: 'हिंदी', english_name: 'Hindi' },
@@ -49,6 +56,9 @@ export default function LanguageSwitcher({ compact = false }) {
         onChange={(event) => setLanguage(event.target.value)}
         aria-label="Answer language"
       >
+        <option value={AUTO}>
+          {compact ? 'भाषा · Auto' : 'अपने आप पहचानें · Detect automatically'}
+        </option>
         {languages.map((option) => (
           <option key={option.code} value={option.code}>
             {option.name}

@@ -22,18 +22,23 @@ const SUGGESTIONS = [
 ];
 
 function AgentBubble({ response, language, onSpeak }) {
+  // On 'auto' the agent decided the language, so the bubble must follow the
+  // response rather than the picker — otherwise a Marathi answer would be
+  // labelled and read aloud as Hindi.
+  const shown = language === 'auto' ? response.answer_language || 'hi' : language;
+
   // Prefer the answer the agent actually produced for this language; fall back
   // to the schema's Hindi/English pair when the language has no dedicated text.
   const answer =
-    response.answers?.[language] ||
+    response.answers?.[shown] ||
     response.answer ||
-    (language === 'en' ? response.english_answer : response.hindi_answer);
-  const alternate = language === 'en' ? response.hindi_answer : response.english_answer;
+    (shown === 'en' ? response.english_answer : response.hindi_answer);
+  const alternate = shown === 'en' ? response.hindi_answer : response.english_answer;
   const [showAlternate, setShowAlternate] = useState(false);
 
   return (
     <div className="glass max-w-[85%] p-4">
-      <p lang={language} className="whitespace-pre-wrap text-sm leading-relaxed">
+      <p lang={shown} className="whitespace-pre-wrap text-sm leading-relaxed">
         {answer}
       </p>
 
@@ -46,14 +51,14 @@ function AgentBubble({ response, language, onSpeak }) {
           >
             {showAlternate
               ? 'Hide translation'
-              : language === 'en'
+              : shown === 'en'
                 ? 'हिंदी में देखें'
                 : 'Show in English'}
           </button>
           <AnimatePresence>
             {showAlternate && (
               <motion.p
-                lang={language === 'en' ? 'hi' : 'en'}
+                lang={shown === 'en' ? 'hi' : 'en'}
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
@@ -118,7 +123,8 @@ export default function ChatBot() {
     voice.reset();
     await ask(text, {
       ...(geo.coordinates ? { coordinates: geo.coordinates } : {}),
-      languageOverride: language,
+      // 'auto' sends nothing, so detection decides.
+      languageOverride: language === 'auto' ? undefined : language,
     });
   };
 
@@ -126,9 +132,9 @@ export default function ChatBot() {
     <section className="flex h-full flex-col" data-testid="chatbot">
       <div className="flex-1 space-y-4 overflow-y-auto p-1" role="log" aria-live="polite">
         {messages.length === 0 && (
-          <div className="glass p-5">
+          <div className="surface p-5">
             <h2 className="text-lg font-semibold">नमस्ते! मैं आपका मंडी सहायक हूँ।</h2>
-            <p className="mt-1 text-sm opacity-70">
+            <p className="muted mt-1 text-sm">
               Ask about mandi prices, buyers, or whether to sell — in whichever language
               you picked above.
             </p>

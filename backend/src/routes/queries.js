@@ -33,7 +33,12 @@ queriesRouter.post(
       pincode: pincode || profile.pincode || null,
       ip_address: req.ip,
       session_id: sessionId || null,
-      language_override: languageOverride || req.user?.preferredLanguage || null,
+      // An explicit 'auto' means the farmer asked for detection, so the stored
+      // profile preference must not quietly override it.
+      language_override:
+        languageOverride === 'auto'
+          ? null
+          : languageOverride || req.user?.preferredLanguage || null,
     });
 
     await saveQuery({

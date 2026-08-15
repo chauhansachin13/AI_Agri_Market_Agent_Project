@@ -19,7 +19,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   // Language is chosen before sign-in and must survive a reload, so it lives in
   // storage rather than only on the profile. §6.3 expands this well past hi/en.
-  const [language, setLanguageState] = useState(() => storedLanguage() || 'hi');
+  // 'auto' means: let the service detect the language of the question. A fixed
+  // default would answer a Marathi speaker in Hindi just because they never
+  // opened the picker.
+  const [language, setLanguageState] = useState(() => storedLanguage() || 'auto');
 
   // Restore the session on first mount. A stored token may have expired while
   // the tab was closed, so it is validated against the server, not trusted.
