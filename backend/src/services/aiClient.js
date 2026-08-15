@@ -11,8 +11,21 @@ let cached = { url: null, instance: null };
  * set after this module is loaded — which is what the test harness does, and
  * what a late-loading secrets provider would do in deployment.
  */
+/**
+ * Some platforms expose a linked service as a bare `host:port` with no scheme —
+ * Render's `fromService` is one. Axios treats that as a relative URL and every
+ * call fails confusingly, so the scheme is filled in here: localhost over http,
+ * anything else over https.
+ */
+function normaliseServiceUrl(value) {
+  if (!value) return value;
+  if (/^https?:\/\//i.test(value)) return value;
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test(value);
+  return `${local ? 'http' : 'https'}://${value}`;
+}
+
 function client() {
-  const url = process.env.AI_SERVICE_URL || config.aiServiceUrl;
+  const url = normaliseServiceUrl(process.env.AI_SERVICE_URL || config.aiServiceUrl);
   if (cached.url !== url) {
     cached = {
       url,
@@ -99,6 +112,8 @@ export async function health() {
     return { reachable: false, error: error.message };
   }
 }
+
+export { normaliseServiceUrl };
 
 export async function fetchForecast(params) {
   try {

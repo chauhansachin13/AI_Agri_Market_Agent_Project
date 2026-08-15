@@ -69,3 +69,20 @@ describe('serving the single-page app', () => {
     assert.match(response.headers.get('cache-control') || '', /immutable/);
   });
 });
+
+describe('service URL normalisation', () => {
+  test('a bare host:port gains a scheme', async () => {
+    const { normaliseServiceUrl } = await import('../src/services/aiClient.js');
+    // Render's fromService exposes `host:port` with no scheme; axios would
+    // treat that as a relative URL and every upstream call would fail.
+    assert.equal(normaliseServiceUrl('agri-ai:8000'), 'https://agri-ai:8000');
+    assert.equal(normaliseServiceUrl('localhost:8000'), 'http://localhost:8000');
+    assert.equal(normaliseServiceUrl('127.0.0.1:8000'), 'http://127.0.0.1:8000');
+  });
+
+  test('an explicit scheme is left alone', async () => {
+    const { normaliseServiceUrl } = await import('../src/services/aiClient.js');
+    assert.equal(normaliseServiceUrl('http://a:1'), 'http://a:1');
+    assert.equal(normaliseServiceUrl('https://a'), 'https://a');
+  });
+});

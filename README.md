@@ -177,6 +177,54 @@ Open <http://localhost:5173>.
 
 </details>
 
+## Deploying it
+
+The gateway serves the built frontend, so the whole product is **two services**:
+the Python AI service, and one Node service that is both the API and the web
+app. Neither needs a secret to boot.
+
+### Render (one click, free tier)
+
+The repo ships a [`render.yaml`](render.yaml) blueprint:
+
+1. Render dashboard → **New** → **Blueprint** → pick this repo
+2. Deploy
+
+It wires the gateway to the AI service automatically and generates a
+`JWT_SECRET`. Add any API keys afterwards in the dashboard — the app runs
+offline against its bundled dataset until you do, and labels every answer
+accordingly.
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+Two containers; the app is on <http://localhost:4000>.
+
+### Anywhere else
+
+Any host that can run a Node process and a Python process will do:
+
+```bash
+# AI service
+cd ai-service && pip install -r requirements-core.txt
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+# Web app + API (build the frontend first)
+cd frontend && npm ci && npm run build
+cd ../backend && npm ci && NODE_ENV=production node src/server.js
+```
+
+Set `AI_SERVICE_URL` on the gateway to wherever the AI service is listening. A
+bare `host:port` is fine — the scheme is filled in automatically. In production
+`JWT_SECRET` must be set to a real secret; the server refuses to start
+otherwise.
+
+Both services expose `/health`, which also reports which integrations are
+active — use it as your platform's health check.
+
 ### Going live
 
 Everything above runs offline against the bundled dataset, and every answer

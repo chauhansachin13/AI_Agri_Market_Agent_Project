@@ -1,0 +1,65 @@
+# Render blueprint — deploys the whole system from this repo.
+#
+#   1. Push this repo to GitHub
+#   2. Render dashboard -> New -> Blueprint -> pick the repo
+#   3. Deploy
+#
+# It runs with no secrets: the AI service falls back to its bundled dataset and
+# every answer is flagged as offline. Add the keys under `sync: false` in the
+# dashboard to switch on live government data, Gemini and internet search.
+services:
+  - type: web
+    name: agri-ai-service
+    runtime: python
+    plan: free
+    rootDir: ai-service
+    buildCommand: pip install -r requirements-core.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: '3.11.9'
+      - key: OFFLINE_MODE
+        value: '1'
+      # Set these in the dashboard to go live. Each is independent.
+      - key: AGMARKNET_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+
+  - type: web
+    name: agri-app
+    runtime: node
+    plan: free
+    # The gateway serves the built frontend, so this one service is the whole
+    # user-facing app on one origin.
+    buildCommand: npm --prefix frontend ci && npm --prefix frontend run build && npm --prefix backend ci
+    startCommand: node backend/src/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: '20'
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_DIST
+        value: /opt/render/project/src/frontend/dist
+      - key: AI_SERVICE_URL
+        fromService:
+          type: web
+          name: agri-ai-service
+          property: hostport
+      # Generated once and kept; regenerating it signs every user out.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
