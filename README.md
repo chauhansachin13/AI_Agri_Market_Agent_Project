@@ -330,23 +330,70 @@ fact check      : partially_verified
 
 ---
 
-## Tests
+## Tests and measured accuracy
 
 ```bash
-cd ai-service && .venv/bin/python -m pytest tests/ -q   # 265 tests
-cd backend    && npm test                               # 94 tests
-cd frontend   && npm test                               # 40 tests
+./run.sh test                                          # all three suites
+cd ai-service && .venv/bin/python -m eval.run_eval     # accuracy report
 ```
 
 The suites run fully offline — no API keys, no database, no network.
 
-Coverage is weighted toward the things that would actually hurt a farmer if
-they broke: that a price in an answer is always traceable to a source, that a
-recommendation never cites reasoning which contradicts it, that a neighbouring
-district is queried under the state it truly belongs to, and that Hindi answers
-come back in Devanagari rather than transliteration.
+```bash
+cd ai-service && .venv/bin/python -m pytest tests/ -q   # 276 tests
+cd backend    && npm test                               # 108 tests
+cd frontend   && npm test                               # 40 tests
+```
 
----
+### What the accuracy harness measures
+
+A held-out set of **112 labelled queries across all seven languages**, covering
+the four intents plus the tail that actually breaks parsers: code-switching,
+romanised Hindi, Marathi and Bengali case inflection, plurals, terse fragments,
+pincodes, and questions that sit genuinely between two intents.
+
+| Metric | Measured | Report target |
+|---|---|---|
+| Intent classification accuracy | **99.1%** | ≥ 90% |
+| Intent weighted F1 | **0.991** | — |
+| Language detection accuracy | **99.1%** | — |
+| Crop extraction accuracy | **100%** | ≥ 90% |
+| Location resolution accuracy | **100%** | ≥ 85% |
+| Price claims traceable to a source | **100%** (301/301) | ≥ 95% |
+| Unsupported figures reaching an answer | **0** | 0 |
+| Forecast beats the naive baseline | **85.7%** of series | — |
+| Mean forecast error reduction vs naive | **57.2%** | — |
+| End-to-end latency (offline) | 32 ms mean, 40 ms p95 | < 3 s |
+
+Per-intent:
+
+| Intent | Precision | Recall | F1 | n |
+|---|---|---|---|---|
+| price_query | 0.981 | 1.000 | 0.991 | 53 |
+| sell_advice | 1.000 | 1.000 | 1.000 | 21 |
+| buyer_search | 1.000 | 1.000 | 1.000 | 20 |
+| trend_analysis | 1.000 | 0.944 | 0.971 | 18 |
+
+**Read these honestly.** Two caveats matter:
+
+- The forecast figures are measured on the bundled reference series, which is
+  generated from smooth seasonal curves that a linear autoregressor fits far
+  more easily than real mandi prices. The *skill score* — how often it beats
+  the naive baseline on the same series — is the meaningful number; the
+  absolute error is a sanity check on the implementation, not a real-world
+  claim. The harness prints this warning itself.
+- The evaluation set was authored alongside the system, so it measures whether
+  the pipeline handles the phenomena it was built for, not how it performs on
+  unseen traffic.
+
+The thresholds are pinned as tests (`tests/test_accuracy.py`) and run in CI, so
+an accuracy regression fails the build rather than waiting to be noticed.
+
+Coverage is otherwise weighted toward what would actually hurt a farmer: that a
+price in an answer is always traceable, that a recommendation never cites
+reasoning which contradicts it, that a neighbouring district is queried under
+the state it truly belongs to, and that answers come back in the script they
+were asked in.
 
 ## Design notes
 

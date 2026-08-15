@@ -28,10 +28,17 @@ _LATIN = re.compile(r"[A-Za-z]")
 
 # Romanised Indic that carries no native script but is clearly not English.
 ROMANISED_MARKERS: dict[str, tuple[str, ...]] = {
-    "hi": ("kya", "kitna", "bhav", "kaun", "kharid", "bech", "chahiye", "hai", "mera"),
+    "hi": (
+        "kya", "kitna", "bhav", "bhaav", "kaun", "kharid", "bech", "chahiye",
+        "hai", "mera", "mere",
+        # Postpositions and common nouns. Without these, "Bhagalpur mein onion
+        # ka rate" and "phool gobhi ka daam" were both classified as English.
+        "mein", "me", "ka", "ki", "ke", "daam", "mandi", "kisan", "aaj",
+        "phool", "gobhi", "mirch", "sarson", "makka",
+    ),
     "bho": ("ba", "bate", "ketna", "kawan", "raua", "hamni"),
     "mai": ("achi", "achhi", "katek", "ahaan", "hamar"),
-    "mr": ("aahe", "ahe", "kiti", "kasa", "mala", "pahije", "kanda"),
+    "mr": ("aahe", "ahe", "kiti", "kasa", "mala", "pahije", "kanda", "cha bhav", "sanga"),
     "bn": ("koto", "dam", "ache", "amar", "kinche"),
     "ta": ("evvalavu", "vilai", "enna", "yaar"),
 }

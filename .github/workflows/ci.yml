@@ -29,6 +29,14 @@ jobs:
           OFFLINE_MODE: '1'
         run: python -m pytest tests/ -q
 
+      - name: Accuracy evaluation
+        # Prints the full report and exits non-zero if any measured metric
+        # falls below the target, so accuracy regressions fail the build
+        # rather than going unnoticed until someone re-reads a report.
+        env:
+          OFFLINE_MODE: '1'
+        run: python -m eval.run_eval
+
   backend:
     name: Backend (node:test)
     runs-on: ubuntu-latest

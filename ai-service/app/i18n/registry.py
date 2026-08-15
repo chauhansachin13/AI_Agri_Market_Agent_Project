@@ -273,7 +273,13 @@ MARATHI = LanguageSpec(
     english_name="Marathi",
     script="devanagari",
     speech_tag="mr-IN",
-    markers=("आहे", "आणि", "मध्ये", "नाही", "किती", "कसा", "मला", "पाहिजे"),
+    markers=(
+        "आहे", "आहेत", "आणि", "मध्ये", "नाही", "किती", "कसा", "मला", "पाहिजे",
+        # Imperatives, past tense and the genitive endings that carry most
+        # Marathi questions; "आहे" alone misses "किंमत सांगा" and "भाव वाढला का".
+        "सांगा", "किंमत", "करावी", "वाढला", "घसरला", "मागील", "आता", "मी",
+        "विकू", "थांबू", "विक्री", "खरेदी", "चा भाव", "ची किंमत", "कुठे",
+    ),
     crop_names={
         "Tomato": "टोमॅटो", "Onion": "कांदा", "Wheat": "गहू", "Potato": "बटाटा",
         "Rice": "तांदूळ", "Lentil (Masur)(Whole)": "मसूर", "Maize": "मका",

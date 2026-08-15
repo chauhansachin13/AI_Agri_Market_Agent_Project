@@ -12,22 +12,41 @@ from __future__ import annotations
 INTENT_TRIGGERS: dict[str, dict[str, int]] = {
     "price_query": {
         "price": 2, "rate": 2, "cost": 2, "bhav": 2, "kitna": 1, "value": 1,
+        # "selling for" is a price idiom, not a sell question. It has to outrank
+        # the bare "sell" trigger or "how much are tomatoes selling for" is
+        # classified as sell_advice.
+        "selling for": 4, "how much": 2, "how much does": 3, "what is the price": 3,
         "भाव": 2, "रेट": 2, "कीमत": 2, "दाम": 2, "मूल्य": 2, "कितना": 1, "क्या": 1,
     },
     "buyer_search": {
-        "buyer": 2, "buyers": 2, "buying": 2, "purchase": 2, "trader": 2,
+        "buyer": 2, "buyers": 2, "buying": 2, "purchase": 2, "trader": 2, "traders": 2,
         "kharid": 2, "mandi contact": 2, "apmc": 2, "who is buying": 3, "nearby": 1,
         "खरीद": 2, "खरीदार": 2, "व्यापारी": 2, "कौन": 1, "आसपास": 1, "संपर्क": 1,
+        # Maithili/Bhojpuri future forms of "to buy": केओ किनत, के कीनी.
+        "किनत": 3, "किनैत": 3, "कीनत": 3, "कीनी": 2,
     },
     "sell_advice": {
         "should i sell": 3, "sell now": 3, "sell or wait": 3, "bech": 2,
         "sell": 2, "wait": 2, "advice": 2, "hold": 2, "profit": 1,
-        "बेच": 2, "बेचना": 3, "बेचूं": 3, "रुकूं": 2, "इंतजार": 2, "सलाह": 2, "चाहिए": 1,
+        "should i wait": 4, "should i hold": 4,
+        # An explicit first-person sell verb is a strong signal, and has to beat
+        # the price noun that almost always appears alongside it.
+        "बेचूं": 4, "बेच दूं": 4, "बेच दें": 4, "बेचब": 3, "बेचीं": 3, "विकू": 4, "विक्री": 3,
+        "बेच": 2, "बेचना": 3, "रुकूं": 3, "इंतजार": 2, "सलाह": 2, "चाहिए": 1,
+        "थांबू": 3, "বিক্রি": 3, "விற்க": 3, "விற்பனை": 3,
     },
     "trend_analysis": {
-        "trend": 3, "rising": 2, "falling": 2, "increase": 2, "decrease": 2,
-        "last week": 2, "forecast": 2, "history": 2, "compare": 1,
-        "बढ़ा": 2, "घटा": 2, "रुझान": 3, "पिछले": 2, "हफ्ते": 2, "सप्ताह": 2, "तेजी": 2, "मंदी": 2,
+        "trend": 3, "forecast": 4, "rising": 3, "falling": 3, "increase": 2, "decrease": 2,
+        "last week": 3, "last month": 3, "next week": 3, "history": 2, "compare": 1,
+        "going up": 3, "going down": 3,
+        # Words that denote a *change* in price, as opposed to its level. Without
+        # a higher weight these tie with the price noun in the same sentence
+        # ("गेहूं का भाव घटा है") and the query is read as a price question.
+        "बढ़ा": 3, "घटा": 3, "बढ़ रहा": 3, "घट रहा": 3, "बढ़ल": 3, "घटल": 3,
+        "वाढला": 3, "बेड़েছে": 3, "उयर्न्द": 3,
+        "रुझान": 3, "तेजी": 3, "मंदी": 3, "कल": 2,
+        "पिछले": 2, "पिछला": 2, "पछिला": 2, "मागील": 2, "हफ्ते": 2, "सप्ताह": 2, "महीने": 2,
+        "पिछले हफ्ते": 4, "पिछले महीने": 4, "कैसा रहा": 3,
     },
 }
 
