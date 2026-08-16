@@ -340,38 +340,39 @@ cd ai-service && .venv/bin/python -m eval.run_eval     # accuracy report
 The suites run fully offline — no API keys, no database, no network.
 
 ```bash
-cd ai-service && .venv/bin/python -m pytest tests/ -q   # 276 tests
+cd ai-service && .venv/bin/python -m pytest tests/ -q   # 289 tests
 cd backend    && npm test                               # 108 tests
 cd frontend   && npm test                               # 40 tests
 ```
 
 ### What the accuracy harness measures
 
-A held-out set of **112 labelled queries across all seven languages**, covering
+A held-out set of **124 labelled queries across all seven languages**, covering
 the four intents plus the tail that actually breaks parsers: code-switching,
-romanised Hindi, Marathi and Bengali case inflection, plurals, terse fragments,
-pincodes, and questions that sit genuinely between two intents.
+romanised Hindi, Marathi/Bengali/Tamil case inflection, plurals, terse
+fragments, pincodes, districts named in every supported script, and questions
+that sit genuinely between two intents.
 
 | Metric | Measured | Report target |
 |---|---|---|
-| Intent classification accuracy | **99.1%** | ≥ 90% |
-| Intent weighted F1 | **0.991** | — |
-| Language detection accuracy | **99.1%** | — |
+| Intent classification accuracy | **99.2%** | ≥ 90% |
+| Intent weighted F1 | **0.992** | — |
+| Language detection accuracy | **99.2%** | — |
 | Crop extraction accuracy | **100%** | ≥ 90% |
 | Location resolution accuracy | **100%** | ≥ 85% |
-| Price claims traceable to a source | **100%** (301/301) | ≥ 95% |
+| Price claims traceable to a source | **100%** (326/326) | ≥ 95% |
 | Unsupported figures reaching an answer | **0** | 0 |
-| Forecast beats the naive baseline | **85.7%** of series | — |
+| Forecast beats the naive baseline | **91.4%** of series | — |
 | Mean forecast error reduction vs naive | **57.2%** | — |
-| End-to-end latency (offline) | 32 ms mean, 40 ms p95 | < 3 s |
+| End-to-end latency (offline) | 31 ms mean, 40 ms p95 | < 3 s |
 
 Per-intent:
 
 | Intent | Precision | Recall | F1 | n |
 |---|---|---|---|---|
-| price_query | 0.981 | 1.000 | 0.991 | 53 |
+| price_query | 0.985 | 1.000 | 0.992 | 64 |
+| buyer_search | 1.000 | 1.000 | 1.000 | 21 |
 | sell_advice | 1.000 | 1.000 | 1.000 | 21 |
-| buyer_search | 1.000 | 1.000 | 1.000 | 20 |
 | trend_analysis | 1.000 | 0.944 | 0.971 | 18 |
 
 **Read these honestly.** Two caveats matter:

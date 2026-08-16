@@ -208,8 +208,45 @@ TRICKY: list[Case] = [
 ]
 
 
+# --------------------------------------------------------------------------- #
+# Locations named in non-Latin, non-Devanagari scripts
+#
+# This group exists because its absence hid a real bug. Every location case was
+# Hindi or English, so nobody noticed that a Bengali or Tamil farmer naming
+# their own district was not resolved at all — the query silently fell back to
+# the default districts and answered about somewhere else entirely.
+# --------------------------------------------------------------------------- #
+MULTISCRIPT_LOCATIONS: list[Case] = [
+    Case("পাটনায় গমের দাম কত?", "bn", "price_query", "Wheat", "Bihar", "Patna",
+         tags=("script-location",)),
+    Case("বিহারে পেঁয়াজের দাম", "bn", "price_query", "Onion", "Bihar",
+         tags=("script-location",)),
+    Case("মুজাফফরপুরে আলুর দর", "bn", "price_query", "Potato", "Bihar", "Muzaffarpur",
+         tags=("script-location",)),
+    Case("পাটনায় গম কে কিনছে", "bn", "buyer_search", "Wheat", "Bihar", "Patna",
+         tags=("script-location",)),
+    Case("பாட்னாவில் கோதுமை விலை என்ன?", "ta", "price_query", "Wheat", "Bihar", "Patna",
+         tags=("script-location",)),
+    Case("பீகாரில் வெங்காயம் விலை", "ta", "price_query", "Onion", "Bihar",
+         tags=("script-location",)),
+    Case("கயாவில் தக்காளி விலை", "ta", "price_query", "Tomato", "Bihar", "Gaya",
+         tags=("script-location",)),
+    Case("इंदौर मध्ये कांद्याचा भाव किती आहे", "mr", "price_query", "Onion",
+         "Madhya Pradesh", "Indore", tags=("script-location",)),
+    Case("नालंदा मध्ये गव्हाचे भाव", "mr", "price_query", "Wheat", "Bihar", "Nalanda",
+         tags=("script-location",)),
+    Case("पटना में पियाज के भाव केतना बा", "bho", "price_query", "Onion", "Bihar", "Patna",
+         tags=("script-location",)),
+    Case("दरभंगा मे गहूम के भाव कतेक अछि", "mai", "price_query", "Wheat", "Bihar", "Darbhanga",
+         tags=("script-location",)),
+    Case("লুধিয়ানায় গমের দাম", "bn", "price_query", "Wheat", "Punjab", "Ludhiana",
+         tags=("script-location",)),
+]
+
+
 ALL_CASES: list[Case] = (
     HINDI + ENGLISH + BHOJPURI + MAITHILI + MARATHI + BENGALI + TAMIL + TRICKY
+    + MULTISCRIPT_LOCATIONS
 )
 
 BY_LANGUAGE: dict[str, list[Case]] = {}

@@ -130,29 +130,81 @@ STATE_DISTRICTS: dict[str, list[str]] = {
     "Rajasthan": ["Jaipur", "Jodhpur", "Kota", "Ajmer", "Bikaner", "Udaipur"],
 }
 
-# Devanagari surface forms for the states and the highest-traffic districts.
-PLACE_ALIASES: dict[str, str] = {
-    "बिहार": "Bihar",
-    "उत्तर प्रदेश": "Uttar Pradesh",
+# --- Place names, per script (Section 6.3) ----------------------------------
+# A Bengali or Tamil farmer names their district in their own script, so a
+# Devanagari-only gazetteer silently fails to resolve their location and quietly
+# falls back to the default districts. Each canonical name therefore carries a
+# form in every script the system reads.
+#
+# Only the citation form is listed. Case endings attach as suffixes in these
+# languages (পাটনা -> পাটনায়, பாட்னா -> பாட்னாவில்), and the matcher accepts a
+# following non-ASCII character, so the inflected forms resolve too.
+PLACE_NAMES: dict[str, dict[str, str]] = {
+    # States
+    "Bihar": {"deva": "बिहार", "beng": "বিহার", "taml": "பீகார்"},
+    "Uttar Pradesh": {"deva": "उत्तर प्रदेश", "beng": "উত্তরপ্রদেশ", "taml": "உத்தரப்பிரதேசம்"},
+    "Madhya Pradesh": {"deva": "मध्य प्रदेश", "beng": "মধ্যপ্রদেশ", "taml": "மத்தியப்பிரதேசம்"},
+    "Punjab": {"deva": "पंजाब", "beng": "পাঞ্জাব", "taml": "பஞ்சாப்"},
+    "Haryana": {"deva": "हरियाणा", "beng": "হরিয়ানা", "taml": "ஹரியானா"},
+    "Rajasthan": {"deva": "राजस्थान", "beng": "রাজস্থান", "taml": "ராஜஸ்தான்"},
+    # Districts
+    "Patna": {"deva": "पटना", "beng": "পাটনা", "taml": "பாட்னா"},
+    "Muzaffarpur": {"deva": "मुजफ्फरपुर", "beng": "মুজাফফরপুর", "taml": "முசாபர்பூர்"},
+    "Gaya": {"deva": "गया", "beng": "গয়া", "taml": "கயா"},
+    "Bhagalpur": {"deva": "भागलपुर", "beng": "ভাগলপুর", "taml": "பாகல்பூர்"},
+    "Nalanda": {"deva": "नालंदा", "beng": "নালন্দা", "taml": "நாளந்தா"},
+    "Vaishali": {"deva": "वैशाली", "beng": "বৈশালী", "taml": "வைசாலி"},
+    "Darbhanga": {"deva": "दरभंगा", "beng": "দারভাঙ্গা", "taml": "தர்பங்கா"},
+    "Purnia": {"deva": "पूर्णिया", "beng": "পূর্ণিয়া", "taml": "பூர்ணியா"},
+    "Lucknow": {"deva": "लखनऊ", "beng": "লখনউ", "taml": "லக்னோ"},
+    "Kanpur": {"deva": "कानपुर", "beng": "কানপুর", "taml": "கான்பூர்"},
+    "Varanasi": {"deva": "वाराणसी", "beng": "বারাণসী", "taml": "வாரணாசி"},
+    "Gorakhpur": {"deva": "गोरखपुर", "beng": "গোরখপুর", "taml": "கோரக்பூர்"},
+    "Agra": {"deva": "आगरा", "beng": "আগ্রা", "taml": "ஆக்ரா"},
+    "Bhopal": {"deva": "भोपाल", "beng": "ভোপাল", "taml": "போபால்"},
+    "Indore": {"deva": "इंदौर", "beng": "ইন্দোর", "taml": "இந்தூர்"},
+    "Jabalpur": {"deva": "जबलपुर", "beng": "জবলপুর", "taml": "ஜபல்பூர்"},
+    "Ludhiana": {"deva": "लुधियाना", "beng": "লুধিয়ানা", "taml": "லுதியானா"},
+    "Amritsar": {"deva": "अमृतसर", "beng": "অমৃতসর", "taml": "அமிர்தசரஸ்"},
+    "Patiala": {"deva": "पटियाला", "beng": "পাটিয়ালা", "taml": "பாட்டியாலா"},
+    "Karnal": {"deva": "करनाल", "beng": "কারনাল", "taml": "கர்னால்"},
+    "Jaipur": {"deva": "जयपुर", "beng": "জয়পুর", "taml": "ஜெய்ப்பூர்"},
+}
+
+# Short forms and colloquial variants that map onto the same canonical name.
+PLACE_SHORT_FORMS: dict[str, str] = {
     "यूपी": "Uttar Pradesh",
-    "मध्य प्रदेश": "Madhya Pradesh",
     "एमपी": "Madhya Pradesh",
-    "पंजाब": "Punjab",
-    "हरियाणा": "Haryana",
-    "राजस्थान": "Rajasthan",
-    "पटना": "Patna",
-    "मुजफ्फरपुर": "Muzaffarpur",
-    "गया": "Gaya",
-    "भागलपुर": "Bhagalpur",
-    "नालंदा": "Nalanda",
-    "वैशाली": "Vaishali",
-    "लखनऊ": "Lucknow",
-    "कानपुर": "Kanpur",
-    "वाराणसी": "Varanasi",
-    "भोपाल": "Bhopal",
-    "इंदौर": "Indore",
-    "लुधियाना": "Ludhiana",
-    "अमृतसर": "Amritsar",
+    "बिहार राज्य": "Bihar",
+}
+
+# Dependent vowel signs and the virama/pulli, which case endings replace rather
+# than follow. Tamil பீகார் + இல் becomes பீகாரில் — the pulli is dropped, so the
+# citation form is not a prefix of the inflected one and plain containment misses
+# it. Stripping the trailing mark gives a stem that does match.
+_PLACE_FINAL_MARKS = "\u0BCD\u094D\u09CD" + "ािीुूृेैोौंँः্ািীুূেৈোৌংாிீுூெேைொோௌ"
+
+
+def _place_stem(form: str) -> str | None:
+    stem = form.rstrip(_PLACE_FINAL_MARKS)
+    return stem if len(stem) >= 3 and stem != form else None
+
+
+# alias -> canonical, across every script. Built once at import.
+PLACE_ALIASES: dict[str, str] = dict(PLACE_SHORT_FORMS)
+for _canonical, _forms in PLACE_NAMES.items():
+    for _form in _forms.values():
+        PLACE_ALIASES[_form] = _canonical
+        _stem = _place_stem(_form)
+        # setdefault so a stem never shadows another place's citation form.
+        if _stem:
+            PLACE_ALIASES.setdefault(_stem, _canonical)
+del _canonical, _forms, _form
+
+# Language code -> the script key its place names are written in.
+LANGUAGE_SCRIPT: dict[str, str] = {
+    "hi": "deva", "bho": "deva", "mai": "deva", "mr": "deva",
+    "bn": "beng", "ta": "taml", "en": "latin",
 }
 
 # --- Pincode prefix -> (state, district) ------------------------------------
@@ -209,20 +261,25 @@ DISTRICT_CENTROIDS: dict[tuple[str, str], tuple[float, float]] = {
 }
 
 
-# Reverse of PLACE_ALIASES, for rendering place names in Devanagari.  Several
-# canonical names have more than one alias ("मध्य प्रदेश" and "एमपी"); the first
-# listed is the full form, so earlier entries win over later abbreviations.
-DEVANAGARI_PLACE: dict[str, str] = {}
-for _alias, _canonical in PLACE_ALIASES.items():
-    DEVANAGARI_PLACE.setdefault(_canonical, _alias)
-del _alias, _canonical
+def localise_place(name: str | None, language: str = "hi") -> str | None:
+    """Render a state or district in the script of the given language.
+
+    Falls back to the canonical English spelling when no form is known, which
+    is also what English itself gets. Mandi names are deliberately *not* passed
+    through here: a farmer looks for the name painted on the yard gate, not a
+    transliteration of it.
+    """
+    if not name:
+        return name
+    script = LANGUAGE_SCRIPT.get(language, "deva")
+    if script == "latin":
+        return name
+    return PLACE_NAMES.get(name, {}).get(script, name)
 
 
 def to_devanagari_place(name: str | None) -> str | None:
-    """Devanagari form of a state or district, or the original when unknown."""
-    if not name:
-        return name
-    return DEVANAGARI_PLACE.get(name, name)
+    """Devanagari form of a place. Retained for callers that assume Hindi."""
+    return localise_place(name, "hi")
 
 
 def all_districts() -> list[tuple[str, str]]:

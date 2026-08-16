@@ -162,3 +162,63 @@ def test_the_forecaster_beats_the_naive_baseline_on_most_series():
 
     assert attempts > 0
     assert wins / attempts >= 0.6, f"beat the baseline on only {wins}/{attempts} series"
+
+
+# --------------------------------------------------------------------------- #
+# Multi-script places
+#
+# These exist because their absence hid a real bug: every location case in the
+# evaluation set was Hindi or English, so a Bengali or Tamil farmer naming their
+# own district was silently not resolved at all — the query fell back to the
+# default districts and answered about somewhere else.
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "query,district,state",
+    [
+        ("পাটনায় গমের দাম কত?", "Patna", "Bihar"),
+        ("মুজাফফরপুরে আলুর দর", "Muzaffarpur", "Bihar"),
+        ("পাটনায় গম কে কিনছে", "Patna", "Bihar"),
+        ("பாட்னாவில் கோதுமை விலை என்ன?", "Patna", "Bihar"),
+        ("கயாவில் தக்காளி விலை", "Gaya", "Bihar"),
+        ("इंदौर मध्ये कांद्याचा भाव", "Indore", "Madhya Pradesh"),
+    ],
+)
+def test_districts_named_in_any_script_resolve(query, district, state):
+    result = pipeline.run(query)
+    assert result.location.district == district
+    assert result.location.state == state
+
+
+def test_a_state_named_in_tamil_resolves():
+    """Tamil's locative replaces the pulli: பீகார் + இல் -> பீகாரில்.
+
+    The citation form is therefore not a prefix of the inflected one, so
+    matching has to run against the stem.
+    """
+    assert pipeline.run("பீகாரில் வெங்காயம் விலை").location.state == "Bihar"
+
+
+@pytest.mark.parametrize(
+    "language,district,expected",
+    [
+        ("hi", "Patna", "पटना"),
+        ("mr", "Patna", "पटना"),
+        ("bn", "Patna", "পাটনা"),
+        ("ta", "Patna", "பாட்னா"),
+        ("en", "Patna", "Patna"),
+    ],
+)
+def test_places_render_in_the_readers_script(language, district, expected):
+    """A Tamil answer read "Gaya, Muzaffarpur, Patna அருகே" before this."""
+    from app.nlp.lexicon import localise_place
+
+    assert localise_place(district, language) == expected
+
+
+def test_a_place_stem_never_shadows_another_places_name():
+    """Stems are added for inflection, and must not capture a different place."""
+    from app.nlp.lexicon import PLACE_ALIASES, PLACE_NAMES
+
+    for canonical, forms in PLACE_NAMES.items():
+        for form in forms.values():
+            assert PLACE_ALIASES[form] == canonical

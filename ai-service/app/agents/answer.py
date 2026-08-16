@@ -20,39 +20,38 @@ from __future__ import annotations
 import logging
 
 from ..i18n.registry import crop_label, get_language, template
-from ..nlp.lexicon import to_devanagari_place
+from ..nlp.lexicon import localise_place
 from ..schemas import FactCheckStatus, Language
 from .llm import GROUNDING_RULES, get_llm
 from .specialists import AgentContext, FactCheckAgent
 
 logger = logging.getLogger(__name__)
 
-# Languages whose place names we can render in their own script. Elsewhere the
-# Agmarknet spelling is kept — a farmer looks for the name painted on the yard
-# gate, not a transliteration of it.
-_DEVANAGARI_PLACES = {"hi", "bho", "mai", "mr"}
-
-
 def _format_number(value: float) -> str:
     return f"{value:.0f}"
 
 
 def _location_label(context: AgentContext, language: str) -> str:
+    """Location in the reader's own script.
+
+    Bengali and Tamil were previously left in Latin here, so a Tamil answer
+    read "Gaya, Muzaffarpur, Patna அருகே" — half the sentence in the wrong
+    script.
+    """
     location = context.nlp.location
-    parts = [location.district, location.state]
-
-    if language in _DEVANAGARI_PLACES:
-        parts = [to_devanagari_place(p) for p in parts]
-
+    parts = [
+        localise_place(location.district, language),
+        localise_place(location.state, language),
+    ]
     label = ", ".join(p for p in parts if p)
     if label:
         return label
 
+    # Unresolved: name the districts the prices actually came from.
     districts = list(dict.fromkeys(r.district for r in context.prices if r.district))
     if districts:
-        if language in _DEVANAGARI_PLACES:
-            districts = [to_devanagari_place(d) or d for d in districts]
-        return ", ".join(districts[:3])
+        translated = [localise_place(d, language) or d for d in districts[:3]]
+        return ", ".join(translated)
 
     return context.location_label
 
