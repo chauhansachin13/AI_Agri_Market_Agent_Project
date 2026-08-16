@@ -135,6 +135,7 @@ the URL — the whole app on **one port**, typically <http://localhost:4000>.
 | `./run.sh` | Build and serve everything on one port |
 | `./run.sh dev` | Hot-reloading dev servers (Vite on 5173) |
 | `./run.sh test` | Run all three test suites |
+| `./run.sh status` | Report what is running, and on which ports |
 | `./run.sh stop` | Stop everything it started |
 | `docker compose up --build` | Same thing, in containers |
 

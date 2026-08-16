@@ -6,6 +6,7 @@
 #   ./run.sh dev      hot-reloading dev servers (Vite on 5173)
 #   ./run.sh setup    install dependencies and stop
 #   ./run.sh test     run all three test suites
+#   ./run.sh status   report what is running, and where
 #   ./run.sh stop     stop anything this script started
 #
 # Nothing here needs an API key. Without them the system runs offline against
@@ -240,6 +241,34 @@ check_ports() {
   return 0
 }
 
+# Report what is up. Worth having because the failure mode is invisible: the
+# app simply does not answer, and "is it even running?" is the first question.
+show_status() {
+  local any=0
+  printf '\n'
+  for spec in "$AI_PORT:AI service:/health" "$API_PORT:Web app + API:/health"; do
+    local port="${spec%%:*}" rest="${spec#*:}"
+    local name="${rest%%:*}" path="${rest#*:}"
+    if curl -sf "http://127.0.0.1:$port$path" >/dev/null 2>&1; then
+      printf '  %s●%s  %-16s http://localhost:%s\n' "$GREEN" "$OFF" "$name" "$port"
+      any=1
+    elif port_in_use "$port"; then
+      printf '  %s●%s  %-16s port %s is held, but not answering /health\n' \
+        "$YELLOW" "$OFF" "$name" "$port"
+      any=1
+    else
+      printf '  %s○%s  %-16s not running\n' "$DIM" "$OFF" "$name"
+    fi
+  done
+  printf '\n'
+  if [[ "$any" -eq 0 ]]; then
+    printf '    Nothing is running. Start it with:  ./run.sh\n\n'
+    return 1
+  fi
+  printf '    %sLogs: %s/%s\n\n' "$DIM" "$RUN_DIR" "$OFF"
+  return 0
+}
+
 run_tests() {
   check_prerequisites
   needs_setup && setup
@@ -276,6 +305,10 @@ case "$MODE" in
     stop_services
     ;;
 
+  status)
+    show_status
+    ;;
+
   dev)
     stop_services
     needs_setup && setup
@@ -305,6 +338,6 @@ case "$MODE" in
     ;;
 
   *)
-    die "Unknown command '$MODE'. Use: start | dev | setup | test | stop"
+    die "Unknown command '$MODE'. Use: start | dev | setup | test | status | stop"
     ;;
 esac
