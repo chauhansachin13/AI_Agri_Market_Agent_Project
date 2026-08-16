@@ -18,7 +18,22 @@ const memory = {
 
 const newId = () => crypto.randomBytes(12).toString('hex');
 
-const shape = (doc) => (doc && typeof doc.toObject === 'function' ? doc.toObject() : doc);
+/**
+ * Normalise a stored document for the API.
+ *
+ * Mongo names its primary key `_id`, but the user resource has always exposed
+ * `id`. Leaking the storage convention for some resources and not others makes
+ * the API inconsistent in a way consumers trip over, so every resource gets an
+ * `id`. `_id` is left in place as well, since existing clients read it.
+ */
+const shape = (doc) => {
+  if (!doc) return doc;
+  const plain = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  if (plain._id !== undefined && plain.id === undefined) {
+    plain.id = String(plain._id);
+  }
+  return plain;
+};
 
 const matches = (listing, filters) => {
   if (filters.crop && listing.crop.toLowerCase() !== filters.crop.toLowerCase()) return false;
@@ -54,6 +69,7 @@ export async function createListing(data) {
     updatedAt: new Date(),
     ...data,
   };
+  listing.id = listing._id;
   memory.listings.set(listing._id, listing);
   return listing;
 }
@@ -73,7 +89,7 @@ export async function listListings(filters = {}, limit = 50) {
     if (filters.farmer) query.farmer = filters.farmer;
     if (filters.district) query['location.district'] = new RegExp(`^${filters.district}$`, 'i');
     if (filters.state) query['location.state'] = new RegExp(`^${filters.state}$`, 'i');
-    return Listing.find(query).sort({ createdAt: -1 }).limit(limit).lean().exec();
+    return (await Listing.find(query).sort({ createdAt: -1 }).limit(limit).lean().exec()).map(shape);
   }
 
   return [...memory.listings.values()]
@@ -107,6 +123,7 @@ export async function createOffer(data) {
     updatedAt: new Date(),
     ...data,
   };
+  offer.id = offer._id;
   memory.offers.set(offer._id, offer);
   return offer;
 }
@@ -124,7 +141,7 @@ export async function listOffers(filters = {}, limit = 50) {
     if (filters.listing) query.listing = filters.listing;
     if (filters.buyer) query.buyer = filters.buyer;
     if (filters.status) query.status = filters.status;
-    return Offer.find(query).sort({ pricePerQuintal: -1 }).limit(limit).lean().exec();
+    return (await Offer.find(query).sort({ pricePerQuintal: -1 }).limit(limit).lean().exec()).map(shape);
   }
 
   return [...memory.offers.values()]

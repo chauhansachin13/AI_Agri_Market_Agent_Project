@@ -298,3 +298,51 @@ describe('language auto-detection', () => {
     assert.equal(forwarded.body.language_override, 'ta');
   });
 });
+
+describe('resource id contract', () => {
+  test('every resource exposes `id`, not just the user', async () => {
+    // The user resource always returned `id` while queries and listings
+    // returned Mongo's `_id`, so the same API used two conventions depending
+    // on which resource you asked for.
+    const { token } = await registerFarmer();
+
+    const me = await api('/api/auth/me', { token });
+    assert.ok(me.data.user.id, 'user.id');
+
+    await api('/api/queries', { method: 'POST', token, body: { query: 'wheat price' } });
+    const history = await api('/api/queries/history', { token });
+    assert.ok(history.data[0].id, 'query.id');
+
+    const created = await api('/api/market/listings', {
+      method: 'POST',
+      token,
+      body: { crop: 'Wheat', quantityQuintal: 10, askPricePerQuintal: 2500 },
+    });
+    assert.ok(created.data.listing.id, 'listing.id');
+
+    const listed = await api('/api/market/listings');
+    assert.ok(listed.data.listings[0].id, 'listed listing.id');
+  });
+
+  test('`id` and `_id` agree where both are present', async () => {
+    const { token } = await registerFarmer();
+    const created = await api('/api/market/listings', {
+      method: 'POST',
+      token,
+      body: { crop: 'Onion', quantityQuintal: 5, askPricePerQuintal: 2000 },
+    });
+    const listing = created.data.listing;
+    assert.equal(String(listing.id), String(listing._id));
+  });
+
+  test('a listing can be fetched by its `id`', async () => {
+    const { token } = await registerFarmer();
+    const created = await api('/api/market/listings', {
+      method: 'POST',
+      token,
+      body: { crop: 'Potato', quantityQuintal: 8, askPricePerQuintal: 1500 },
+    });
+    const { status } = await api(`/api/market/listings/${created.data.listing.id}`);
+    assert.equal(status, 200);
+  });
+});

@@ -95,13 +95,28 @@ export async function updateUser(id, updates) {
 
 // --- queries ----------------------------------------------------------------
 
+/**
+ * Expose `id` alongside Mongo's `_id`.
+ *
+ * The user resource has always returned `id`; queries and listings returned
+ * `_id`, so the same API used two conventions depending on which resource you
+ * asked for. `_id` is retained for clients already reading it.
+ */
+const withId = (row) => {
+  if (!row) return row;
+  const plain = typeof row.toObject === 'function' ? row.toObject() : { ...row };
+  if (plain._id !== undefined && plain.id === undefined) plain.id = String(plain._id);
+  return plain;
+};
+
 export async function saveQuery(record) {
   if (isDatabaseConnected()) {
     const saved = await Query.create(record);
-    return saved.toObject();
+    return withId(saved);
   }
 
   const saved = { _id: newId(), createdAt: new Date(), ...record };
+  saved.id = saved._id;
   memory.queries.unshift(saved);
   // Bound the in-memory history so a long-running process cannot grow without limit.
   if (memory.queries.length > 1000) memory.queries.length = 1000;
@@ -113,7 +128,7 @@ export async function listQueries({ userId, sessionId, limit = 20 } = {}) {
     const filter = {};
     if (userId) filter.user = userId;
     if (sessionId) filter.sessionId = sessionId;
-    return Query.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec();
+    return (await Query.find(filter).sort({ createdAt: -1 }).limit(limit).lean().exec()).map(withId);
   }
 
   return memory.queries
