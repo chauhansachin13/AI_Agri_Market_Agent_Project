@@ -18,7 +18,8 @@ queriesRouter.post(
   '/',
   optionalAuth,
   asyncRoute(async (req, res) => {
-    const { query, coordinates, pincode, sessionId, languageOverride } = req.body || {};
+    const { query, coordinates, pincode, sessionId, languageOverride, profile: personalisation } =
+      req.body || {};
 
     if (!query || !String(query).trim()) {
       return res.status(400).json({ error: 'Query text is required' });
@@ -39,6 +40,14 @@ queriesRouter.post(
         languageOverride === 'auto'
           ? null
           : languageOverride || req.user?.preferredLanguage || null,
+      // Personalisation is supplied per request and forwarded straight through;
+      // the gateway does not store it, which is what keeps it local (§6.3).
+      profile: personalisation
+        ? {
+            ...personalisation,
+            crops: personalisation.crops ?? req.user?.crops ?? [],
+          }
+        : null,
     });
 
     await saveQuery({

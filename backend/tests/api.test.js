@@ -346,3 +346,35 @@ describe('resource id contract', () => {
     assert.equal(status, 200);
   });
 });
+
+describe('personalisation forwarding', () => {
+  test('a profile in the request reaches the AI service', async () => {
+    await api('/api/queries', {
+      method: 'POST',
+      body: {
+        query: 'should i sell wheat',
+        profile: { risk_tolerance: 'patient', has_storage: true },
+      },
+    });
+    const forwarded = stub.calls.find((c) => c.path === '/agent/query');
+    assert.equal(forwarded.body.profile.risk_tolerance, 'patient');
+    assert.equal(forwarded.body.profile.has_storage, true);
+  });
+
+  test('no profile means none is forwarded', async () => {
+    await api('/api/queries', { method: 'POST', body: { query: 'wheat price' } });
+    const forwarded = stub.calls.find((c) => c.path === '/agent/query');
+    assert.equal(forwarded.body.profile, null);
+  });
+
+  test("a signed-in farmer's crops fill in when the profile omits them", async () => {
+    const { token } = await registerFarmer({ crops: ['Wheat', 'Potato'] });
+    await api('/api/queries', {
+      method: 'POST',
+      token,
+      body: { query: 'should i sell', profile: { risk_tolerance: 'cautious' } },
+    });
+    const forwarded = stub.calls.find((c) => c.path === '/agent/query');
+    assert.deepEqual(forwarded.body.profile.crops, ['Wheat', 'Potato']);
+  });
+});

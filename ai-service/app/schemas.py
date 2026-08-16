@@ -37,6 +37,9 @@ class QueryRequest(BaseModel):
     pincode: str | None = None
     session_id: str | None = None
     language_override: Language | None = None
+    # Sent by the client per request and never persisted here, which is what
+    # keeps personalisation local (§6.3).
+    profile: FarmerProfileInput | None = None
 
 
 class PriceRecord(BaseModel):
@@ -146,6 +149,38 @@ class WeatherSignal(BaseModel):
     summary_hi: str = ""
 
 
+class NetRealisationRow(BaseModel):
+    """What a farmer actually takes home from one mandi, after the journey."""
+
+    market: str
+    district: str
+    gross_price: float
+    distance_km: float
+    transport_cost: float
+    net_price: float
+
+
+class PersonalisationNote(BaseModel):
+    """How the recommendation was adjusted for this farmer, and why (§6.3)."""
+
+    applied: bool = False
+    threshold_shift: float = 0.0
+    reasons: list[str] = Field(default_factory=list)
+
+
+class FarmerProfileInput(BaseModel):
+    """The profile a client may send. Nothing here is stored by the service."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    farmer_id: str | None = None
+    risk_tolerance: Literal["cautious", "balanced", "patient"] = "balanced"
+    has_storage: bool = False
+    crops: list[str] = Field(default_factory=list)
+    outcomes: list[bool] = Field(default_factory=list)
+    typical_quantity_quintal: float | None = None
+
+
 class LocationContext(BaseModel):
     state: str | None = None
     district: str | None = None
@@ -178,6 +213,8 @@ class AgentResponse(BaseModel):
     forecast: PriceForecast | None = None
     weather: WeatherSignal | None = None
     prediction: Prediction | None = None
+    net_realisations: list[NetRealisationRow] = Field(default_factory=list)
+    personalisation: PersonalisationNote | None = None
     confidence_score: float = Field(0.0, ge=0.0, le=1.0)
     fact_check_status: FactCheckStatus = "insufficient_evidence"
     fact_check_claims: list[FactCheckClaim] = Field(default_factory=list)

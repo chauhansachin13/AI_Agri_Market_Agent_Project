@@ -1,0 +1,21 @@
+{
+  "name": "Agri Market AI — मंडी भाव सहायक",
+  "short_name": "Agri Market",
+  "description": "Government-grounded mandi prices, sell advice and buyers, in seven Indian languages.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f8f7",
+  "theme_color": "#16a34a",
+  "lang": "hi",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Ask the assistant", "url": "/chat" },
+    { "name": "Live mandi board", "url": "/dashboard" }
+  ]
+}

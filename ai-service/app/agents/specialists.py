@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from ..nlp import pipeline as nlp_pipeline
 from ..nlp.intents import classify_intent, is_ambiguous
 from ..nlp.language import response_language
+from ..personalize.profile import FarmerProfile, Personalisation, personalise
+from ..personalize.transport import NetRealisation, net_realisations
 from ..nlp.lexicon import CROP_HINDI_LABEL
 from ..schemas import (
     BuyerRecord,
@@ -62,6 +64,9 @@ class AgentContext:
     forecast: object | None = None       # app.forecast.models.Forecast
     weather: object | None = None        # app.data.weather.WeatherOutlook
     price_series: list[float] = field(default_factory=list)
+    profile: FarmerProfile | None = None
+    personalisation: Personalisation | None = None
+    net_realisations: list[NetRealisation] = field(default_factory=list)
     narrative: str = ""
     response_language: str = "hi"
     prediction: Prediction | None = None
@@ -539,24 +544,67 @@ class SellDecisionAgent:
                     (weight, "a hot dry spell is likely to increase arrivals and soften prices")
                 )
 
-        # Cross-mandi arbitrage: a wide spread means the farmer can do better by
-        # moving the load, which argues against selling into the local rate.
+        # Cross-mandi arbitrage, measured on what the farmer actually takes
+        # home. Comparing sticker prices sends people on trips that cost more
+        # than they gain: the system's own market notes put transport at
+        # Rs 40-90 per quintal, which swallows most raw gaps.
         best_market = None
         if len(context.prices) >= 2:
-            best, worst = context.prices[0], context.prices[-1]
-            best_market = best.market
-            if worst.modal_price > 0:
-                spread = (best.modal_price - worst.modal_price) / worst.modal_price
-                if spread > 0.12:
-                    signals.append(
-                        (
-                            -0.5,
-                            f"a nearby mandi ({best.market}) is paying about "
-                            f"Rs {best.modal_price - worst.modal_price:.0f} more per quintal",
-                        )
+            origin = (
+                (context.nlp.location.state, context.nlp.location.district)
+                if context.nlp.location.state and context.nlp.location.district
+                else None
+            )
+            ranked = net_realisations(context.prices, origin)
+            best_net_option = ranked[0]
+            best_market = best_net_option.market
+
+            # "Selling locally" means the best mandi in the farmer's own
+            # district. Falling back to the worst mandi anywhere would compare
+            # the best option against an irrelevant one and inflate the gain
+            # into advice to travel that is not justified.
+            local = next((r for r in ranked if r.distance_km == 0), None)
+
+            # Keep every row the comparison rests on, so the figure quoted in
+            # the answer stays traceable by the fact-checker.
+            rows = ranked[:5]
+            if local is not None and local not in rows:
+                rows = rows + [local]
+            context.net_realisations = rows
+
+            gain = (best_net_option.net_price - local.net_price) if local else 0.0
+            if local is not None and gain > 40 and best_net_option.market != local.market:
+                signals.append(
+                    (
+                        -0.5,
+                        f"after transport, {best_net_option.market} still nets about "
+                        f"Rs {gain:.0f} more per quintal than selling locally",
                     )
+                )
+            elif (
+                local is not None
+                and best_net_option.market != local.market
+                and best_net_option.gross_price - local.gross_price > 40
+            ):
+                # The headline gap looked worth it and the journey ate it.
+                signals.append(
+                    (
+                        0.3,
+                        f"the higher rate at {best_net_option.market} disappears once "
+                        f"transport is paid, so travelling is not worth it",
+                    )
+                )
 
         sell_score = sum(weight for weight, _ in signals)
+
+        # Personalisation (Section 6.3). Shifts the threshold rather than
+        # overriding the evidence, so the same prices can still yield different
+        # advice for a farmer who cannot store their crop.
+        adjustment = personalise(context.profile, context.nlp.crop)
+        if adjustment.applied:
+            sell_score -= adjustment.threshold_shift
+            context.personalisation = adjustment
+
         recommendation = "SELL" if sell_score > 0 else "WAIT"
 
         # Only cite the signals that actually support the call. Listing the
@@ -575,7 +623,9 @@ class SellDecisionAgent:
         reasons = supporting
         reason_text = "; ".join(reasons) if reasons else "based on the available price records"
         if recommendation == "SELL" and best_market:
-            reason_text += f". Best realisation right now is at {best_market}"
+            reason_text += f". Best net realisation right now is at {best_market}"
+        if adjustment.applied:
+            reason_text += f". Adjusted for you because {adjustment.describe()}"
 
         context.prediction = Prediction(
             recommendation=recommendation,  # type: ignore[arg-type]
@@ -640,6 +690,39 @@ class FactCheckAgent:
                         f"{kind} at day {point.horizon} from the {forecast.model} model "
                         f"trained on {forecast.trained_on} days{accuracy}"
                     )
+        return None
+
+    def _derived_from_net(self, value: float, context: "AgentContext") -> str | None:
+        """Recognise figures derived from net realisation.
+
+        The sell-decision agent quotes the gain *after transport*, which is a
+        real derivation from government records minus a documented haulage
+        rate — but it appears in no record, so without this it is flagged as a
+        hallucination and the recommendation is stripped from the answer.
+        """
+        rows = getattr(context, "net_realisations", None) or []
+        if not rows or value <= 0:
+            return None
+
+        nets = [r.net_price for r in rows]
+        for i, a in enumerate(nets):
+            for b in nets[i + 1 :]:
+                if self._close(value, abs(a - b)):
+                    return (
+                        f"Difference in net realisation between two fetched mandis, "
+                        f"after transport (Rs {max(a, b):.0f} against Rs {min(a, b):.0f})"
+                    )
+
+        for row in rows:
+            if self._close(value, row.transport_cost):
+                return (
+                    f"Estimated transport to {row.market} over {row.distance_km:.0f} km"
+                )
+            if self._close(value, row.net_price):
+                return (
+                    f"Net realisation at {row.market} after transport "
+                    f"(gross Rs {row.gross_price:.0f} less Rs {row.transport_cost:.0f})"
+                )
         return None
 
     def _derived_from_records(self, value: float, prices: list[PriceRecord]) -> str | None:
@@ -729,7 +812,9 @@ class FactCheckAgent:
                 )
                 continue
 
-            derivation = self._derived_from_records(value, context.prices)
+            derivation = self._derived_from_records(
+                value, context.prices
+            ) or self._derived_from_net(value, context)
             if derivation is not None:
                 claims.append(
                     FactCheckClaim(

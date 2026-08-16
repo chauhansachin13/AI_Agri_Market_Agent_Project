@@ -10,6 +10,7 @@ import { useAuth } from './context/AuthContext.jsx';
 // library alone is a large share of the bundle, and a farmer on a rural
 // connection should not download it just to read the home page.
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
+const AlertsPage = lazy(() => import('./pages/AlertsPage.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const PricePage = lazy(() => import('./pages/PricePage.jsx'));
 const MarketplacePage = lazy(() => import('./pages/MarketplacePage.jsx'));
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/prices" element={<PricePage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/market" element={<MarketplacePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route

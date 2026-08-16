@@ -88,6 +88,7 @@ Three tiers, communicating over REST.
 | **Sell Decision** | Weighs trend, range position and cross-mandi spread into SELL/WAIT |
 | **Fact-Check** | Verifies each claim against government data; suppresses unsupported figures |
 | **Answer Generation** | Produces the bilingual, farmer-friendly answer |
+| **Personalisation** | Shifts the sell threshold for this farmer's storage, risk and track record |
 
 | **Price Forecasting** | Fits a trained model to the price history and projects it forward |
 | **Weather Impact** | Turns the district forecast into an anticipated supply signal |
@@ -177,6 +178,54 @@ npm run dev
 Open <http://localhost:5173>.
 
 </details>
+
+## Beyond the report
+
+Chapter 6.3 lists future work. All of it is built:
+
+| Roadmap item | Status |
+|---|---|
+| WhatsApp Business API | Webhook with HMAC verification, bilingual replies |
+| Regional languages | 7 languages, auto-detected, answered in their own script |
+| Advanced price forecasting | Trained ridge autoregression (optional LSTM), backtested |
+| Farmer–buyer marketplace | Listings, offers, accept/reject, priced against the mandi |
+| Weather integration | Forecast → supply-shock signal feeding the sell decision |
+| Federated personalisation | Local profile + clipped, noised, aggregated updates |
+
+Plus things the report does not mention but a farmer needs:
+
+- **Price alerts.** A standing watch — "tell me when wheat in Patna reaches
+  ₹2,600" — evaluated against the cached feed, so nobody has to check the board
+  every morning.
+- **Net realisation.** Mandis are ranked by what the farmer actually takes
+  home. The system's own market notes put transport at ₹40–90 per quintal, so
+  quoting gross gaps sends people on trips that cost more than they gain.
+- **Installable and offline.** A service worker caches the shell and the last
+  good price responses, and marks cached figures with `X-From-Cache` so the UI
+  can say the number may be stale. Installable to an Android home screen.
+
+### How personalisation stays private
+
+The report asks for personalisation "without centralizing sensitive personal
+data". What makes that true rather than aspirational:
+
+1. The profile is sent per request and **never stored** by either service.
+2. A client's contribution to the shared model is a **four-number summary** —
+   dispositions, not events.
+3. It is **clipped** to a bounded norm, so no one farmer can move or poison the
+   shared model.
+4. **Laplace noise** calibrated to that bound is added *before* it leaves,
+   giving local differential privacy. Clipping happens first; noising first
+   would shrink the noise along with the signal and void the guarantee.
+5. Rounds with **fewer than three clients are refused**, since averaging two
+   updates would let the server infer an individual's.
+
+Scope, honestly: this implements the aggregation protocol and its privacy
+properties, and the server genuinely cannot reconstruct an individual's history
+from what it receives. It is not a distributed training system — there is one
+process, and rounds are simulated by passing updates in. The privacy argument
+is about *what is transmitted*, which is the part that matters and the part
+the tests check.
 
 ## Deploying it
 

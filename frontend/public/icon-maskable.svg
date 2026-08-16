@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Agri Market AI">
+  <rect width="512" height="512" fill="#16a34a"/>
+  <g transform="translate(0,10) scale(0.82) translate(56,46)">
+    <g fill="none" stroke="#fff" stroke-width="26" stroke-linecap="round">
+      <path d="M256 396V208"/>
+      <path d="M256 236c-46-6-78-40-84-86 46 6 78 40 84 86Z" fill="#fff" stroke="none"/>
+      <path d="M256 300c46-6 78-40 84-86-46 6-78 40-84 86Z" fill="#fff" stroke="none"/>
+      <path d="M168 396h176"/>
+    </g>
+  </g>
+</svg>

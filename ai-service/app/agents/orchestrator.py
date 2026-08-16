@@ -25,6 +25,8 @@ from ..schemas import (
     AgentResponse,
     ForecastPointModel,
     GeoPoint,
+    NetRealisationRow,
+    PersonalisationNote,
     PriceForecast,
     QueryRequest,
     WeatherDay,
@@ -168,6 +170,19 @@ class ReActOrchestrator:
             coordinates=coordinates,
         )
 
+        # Personalisation data is supplied per request and never stored here.
+        if request.profile is not None:
+            from ..personalize.profile import FarmerProfile
+
+            context.profile = FarmerProfile(
+                farmer_id=request.profile.farmer_id or "anonymous",
+                risk_tolerance=request.profile.risk_tolerance,
+                has_storage=request.profile.has_storage,
+                crops=tuple(request.profile.crops),
+                outcomes=tuple(request.profile.outcomes),
+                typical_quantity_quintal=request.profile.typical_quantity_quintal,
+            )
+
         self._gather_evidence(context)
 
         agentic_steps = self._run_agentic_loop(request, context)
@@ -279,6 +294,23 @@ class ReActOrchestrator:
             forecast=_forecast_model(context.forecast),
             weather=_weather_model(context.weather),
             prediction=context.prediction,
+            net_realisations=[
+                NetRealisationRow(
+                    market=r.market, district=r.district, gross_price=r.gross_price,
+                    distance_km=r.distance_km, transport_cost=r.transport_cost,
+                    net_price=r.net_price,
+                )
+                for r in context.net_realisations
+            ],
+            personalisation=(
+                PersonalisationNote(
+                    applied=context.personalisation.applied,
+                    threshold_shift=round(context.personalisation.threshold_shift, 3),
+                    reasons=context.personalisation.reasons,
+                )
+                if context.personalisation
+                else None
+            ),
             confidence_score=self._confidence(context, status),
             fact_check_status=status,  # type: ignore[arg-type]
             fact_check_claims=context.claims,

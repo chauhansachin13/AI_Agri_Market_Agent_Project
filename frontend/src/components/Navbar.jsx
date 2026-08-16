@@ -10,6 +10,7 @@ const LINKS = [
   { to: '/dashboard', label: 'Mandi Board', hi: 'मंडी बोर्ड' },
   { to: '/prices', label: 'Trends', hi: 'रुझान' },
   { to: '/market', label: 'Marketplace', hi: 'बाज़ार' },
+  { to: '/alerts', label: 'Alerts', hi: 'अलर्ट' },
 ];
 
 const THEME_KEY = 'agri.theme';

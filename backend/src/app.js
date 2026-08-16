@@ -6,6 +6,7 @@ import morgan from 'morgan';
 
 import { config } from './config/index.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { alertsRouter } from './routes/alerts.js';
 import { authRouter } from './routes/auth.js';
 import { mandisRouter } from './routes/mandis.js';
 import { pricesRouter } from './routes/prices.js';
@@ -78,6 +79,7 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/alerts', alertsRouter);
   app.use('/api/queries', queriesRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/mandis', mandisRouter);

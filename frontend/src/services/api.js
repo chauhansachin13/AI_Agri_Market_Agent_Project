@@ -85,6 +85,15 @@ export const withdrawOffer = (id) =>
   client.post(`/market/offers/${id}/withdraw`).then((r) => r.data);
 export const myOffers = () => client.get('/market/offers/mine').then((r) => r.data);
 
+// --- price alerts -----------------------------------------------------------
+export const listAlerts = (status) =>
+  client.get('/alerts', { params: status ? { status } : {} }).then((r) => r.data);
+export const createAlert = (payload) => client.post('/alerts', payload).then((r) => r.data);
+export const checkAlerts = () => client.post('/alerts/check').then((r) => r.data);
+export const updateAlert = (id, payload) =>
+  client.patch(`/alerts/${id}`, payload).then((r) => r.data);
+export const deleteAlert = (id) => client.delete(`/alerts/${id}`).then((r) => r.data);
+
 // --- profile ----------------------------------------------------------------
 export const updateProfile = (payload) =>
   client.patch('/users/profile', payload).then((r) => r.data);
