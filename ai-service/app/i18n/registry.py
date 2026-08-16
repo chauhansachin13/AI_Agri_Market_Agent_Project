@@ -165,7 +165,10 @@ BHOJPURI = LanguageSpec(
     # absent from standard Hindi. `\b` is unreliable straight after a Devanagari
     # combining mark, so the word end is asserted explicitly. The negative
     # lookbehind on ह keeps the very common Hindi नहीं / कहीं / यहीं out.
-    marker_patterns=(r"(?<!ह)ीं(?=[\s?।,.]|$)", r"त\s+ब[ाइ]"),
+    # The imperative ending is spelled with either the matra (बेचीं, रुकीं)
+    # or the independent vowel (बताईं, आईं); matching only the first missed
+    # a whole class of ordinary Bhojpuri requests.
+    marker_patterns=(r"(?<!ह)[ीई]ं(?=[\s?।,.]|$)", r"त\s+ब[ाइ]"),
     crop_names={
         "Tomato": "टमाटर", "Onion": "पियाज", "Wheat": "गेहूँ", "Potato": "आलू",
         "Rice": "चाउर", "Lentil (Masur)(Whole)": "मसूर", "Maize": "मकई",

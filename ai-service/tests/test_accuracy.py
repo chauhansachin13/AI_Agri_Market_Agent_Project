@@ -222,3 +222,42 @@ def test_a_place_stem_never_shadows_another_places_name():
     for canonical, forms in PLACE_NAMES.items():
         for form in forms.values():
             assert PLACE_ALIASES[form] == canonical
+
+
+# --------------------------------------------------------------------------- #
+# The last two classification errors
+# --------------------------------------------------------------------------- #
+def test_a_bare_interrogative_does_not_count_as_a_price_word():
+    """"क्या" opens sell and trend questions as often as price ones.
+
+    Crediting price_query for it produced an exact score tie on
+    "गेहूं का भाव घटा है क्या", which the default intent then won — reading a
+    question about a price *change* as a question about the price.
+    """
+    from app.nlp.intents import score_intents
+
+    scores = score_intents("गेहूं का भाव घटा है क्या")
+    assert scores["trend_analysis"] > scores["price_query"]
+    assert pipeline.run("गेहूं का भाव घटा है क्या").intent == "trend_analysis"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "आलू के भाव बताईं",
+        "गेहूँ के दाम बताईं",
+        "अभहीं आलू बेचीं कि रुकीं",
+    ],
+)
+def test_the_bhojpuri_imperative_is_detected_in_both_spellings(query):
+    """The polite imperative takes either the matra (बेचीं) or the vowel (बताईं).
+
+    Matching only the matra form silently answered a Bhojpuri farmer in Hindi.
+    """
+    assert detect_language(query) == "bho"
+
+
+@pytest.mark.parametrize("query", ["मुझे नहीं पता", "कहीं और भाव देखिए", "यहीं पर बेचूं"])
+def test_common_hindi_words_are_not_mistaken_for_bhojpuri(query):
+    """नहीं / कहीं / यहीं end in the same letters as the Bhojpuri imperative."""
+    assert detect_language(query) != "bho"

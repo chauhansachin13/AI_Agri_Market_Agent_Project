@@ -405,37 +405,44 @@ that sit genuinely between two intents.
 
 | Metric | Measured | Report target |
 |---|---|---|
-| Intent classification accuracy | **99.2%** | ≥ 90% |
-| Intent weighted F1 | **0.992** | — |
-| Language detection accuracy | **99.2%** | — |
+| Intent classification accuracy | **100%** | ≥ 90% |
+| Intent weighted F1 | **1.000** | — |
+| Language detection accuracy | **100%** | — |
 | Crop extraction accuracy | **100%** | ≥ 90% |
 | Location resolution accuracy | **100%** | ≥ 85% |
 | Price claims traceable to a source | **100%** (326/326) | ≥ 95% |
 | Unsupported figures reaching an answer | **0** | 0 |
 | Forecast beats the naive baseline | **91.4%** of series | — |
 | Mean forecast error reduction vs naive | **57.2%** | — |
-| End-to-end latency (offline) | 31 ms mean, 40 ms p95 | < 3 s |
+| End-to-end latency (offline) | 33 ms mean, 42 ms p95 | < 3 s |
 
 Per-intent:
 
 | Intent | Precision | Recall | F1 | n |
 |---|---|---|---|---|
-| price_query | 0.985 | 1.000 | 0.992 | 64 |
+| price_query | 1.000 | 1.000 | 1.000 | 64 |
 | buyer_search | 1.000 | 1.000 | 1.000 | 21 |
 | sell_advice | 1.000 | 1.000 | 1.000 | 21 |
-| trend_analysis | 1.000 | 0.944 | 0.971 | 18 |
+| trend_analysis | 1.000 | 1.000 | 1.000 | 18 |
 
-**Read these honestly.** Two caveats matter:
+**Read these honestly.** Three caveats matter, and the first is the important one:
+
+- **100% here is not 100% in the field.** Five of the six metrics sit at 1.000
+  on this set — but the set was authored alongside the system. It measures
+  whether the pipeline handles the phenomena it was built for, not how it
+  performs on traffic nobody anticipated. A genuine field accuracy number needs
+  logs from real farmers, which this project does not have.
+- **Forecast skill is 0.914 and should not be forced to 1.0.** The model beats
+  the naive baseline on 32 of 35 series. On the other three the series is flat
+  enough that repeating the last value is genuinely the better prediction —
+  that is the baseline being right, not the model being broken. Tuning until it
+  won every series would be overfitting model selection to the test set.
 
 - The forecast figures are measured on the bundled reference series, which is
   generated from smooth seasonal curves that a linear autoregressor fits far
-  more easily than real mandi prices. The *skill score* — how often it beats
-  the naive baseline on the same series — is the meaningful number; the
-  absolute error is a sanity check on the implementation, not a real-world
-  claim. The harness prints this warning itself.
-- The evaluation set was authored alongside the system, so it measures whether
-  the pipeline handles the phenomena it was built for, not how it performs on
-  unseen traffic.
+  more easily than real mandi prices. The absolute error is a sanity check on
+  the implementation, not a real-world claim. The harness prints this warning
+  itself.
 
 The thresholds are pinned as tests (`tests/test_accuracy.py`) and run in CI, so
 an accuracy regression fails the build rather than waiting to be noticed.

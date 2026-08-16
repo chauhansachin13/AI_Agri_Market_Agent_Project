@@ -16,7 +16,10 @@ INTENT_TRIGGERS: dict[str, dict[str, int]] = {
         # the bare "sell" trigger or "how much are tomatoes selling for" is
         # classified as sell_advice.
         "selling for": 4, "how much": 2, "how much does": 3, "what is the price": 3,
-        "भाव": 2, "रेट": 2, "कीमत": 2, "दाम": 2, "मूल्य": 2, "कितना": 1, "क्या": 1,
+        "भाव": 2, "रेट": 2, "कीमत": 2, "दाम": 2, "मूल्य": 2, "कितना": 1,
+        # "क्या" is deliberately absent: it is a bare interrogative that opens
+        # sell and trend questions just as often as price ones, and crediting
+        # it here produced ties that the default intent then won.
     },
     "buyer_search": {
         "buyer": 2, "buyers": 2, "buying": 2, "purchase": 2, "trader": 2, "traders": 2,
